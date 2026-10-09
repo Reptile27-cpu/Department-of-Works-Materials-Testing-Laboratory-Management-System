@@ -1,0 +1,6 @@
+ALTER TABLE "schools"
+  ADD COLUMN "logo_path" TEXT,
+  ADD COLUMN "primary_color" VARCHAR(7) NOT NULL DEFAULT '#1E40AF',
+  ADD COLUMN "secondary_color" VARCHAR(7) NOT NULL DEFAULT '#FFFFFF',
+  ADD COLUMN "background_color" VARCHAR(7) NOT NULL DEFAULT '#F8FAFC',
+  ADD COLUMN "motto" VARCHAR(255);

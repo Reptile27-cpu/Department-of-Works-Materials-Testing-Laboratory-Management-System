@@ -1,0 +1,33 @@
+{
+  "name": "dow-materials-laboratory-management-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Department of Works & Highways Materials Testing Laboratory Management System",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "test:backend": "npm run test --workspace @dow-lab/backend",
+    "auth:reset-dev": "npm run auth:reset-dev --workspace @dow-lab/backend",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "db:migrate": "cd backend && npx prisma migrate dev",
+    "db:seed": "cd backend && npx prisma db seed",
+    "db:studio": "cd backend && npx prisma studio"
+  },
+  "devDependencies": {
+    "prettier": "^3.2.0",
+    "puppeteer-core": "^25.12.0",
+    "turbo": "^1.12.0"
+  },
+  "packageManager": "npm@10.2.4",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "backend"
+  ],
+  "dependencies": {
+    "@neon/config": "^1.8.3",
+    "@neon/env": "^1.5.0",
+    "@prisma/debug": "^7.9.1"
+  }
+}

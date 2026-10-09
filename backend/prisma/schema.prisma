@@ -1,0 +1,733 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Laboratory {
+  id              String           @id @default(uuid()) @db.Uuid
+  name            String           @db.VarChar(255)
+  code            String           @unique @db.VarChar(50)
+  department      String           @default("Department of Works and Highways") @db.VarChar(255)
+  division        String           @default("Materials Testing & Quality Assurance Division") @db.VarChar(255)
+  address         String?
+  province        String?          @db.VarChar(100)
+  district        String?          @db.VarChar(100)
+  phone           String?          @db.VarChar(50)
+  email           String?          @db.VarChar(255)
+  logoUrl         String?          @map("logo_url")
+  primaryColor    String           @default("#1E3A8A") @map("primary_color") @db.VarChar(7)
+  secondaryColor  String           @default("#0D9488") @map("secondary_color") @db.VarChar(7)
+  sampleIdPrefix  String           @default("26P") @map("sample_id_prefix") @db.VarChar(20)
+  reportIdPrefix  String           @default("REP") @map("report_id_prefix") @db.VarChar(20)
+  isActive        Boolean          @default(true) @map("is_active")
+  settings        Json             @default("{}")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  auditLogs       AuditLog[]
+  clients         Client[]
+  equipment       Equipment[]
+  invoices        Invoice[]
+  notifications   Notification[]
+  projects        Project[]
+  quotations      Quotation[]
+  roles           Role[]
+  samples         Sample[]
+  testReports     TestReport[]
+  testingRequests TestingRequest[]
+  users           User[]
+
+  @@map("laboratories")
+}
+
+model User {
+  id                      String                @id @default(uuid()) @db.Uuid
+  laboratoryId            String?               @map("laboratory_id") @db.Uuid
+  email                   String                @unique @db.VarChar(255)
+  phone                   String?               @db.VarChar(50)
+  passwordHash            String                @map("password_hash") @db.VarChar(255)
+  firstName               String                @map("first_name") @db.VarChar(100)
+  lastName                String                @map("last_name") @db.VarChar(100)
+  designation             String?               @db.VarChar(100)
+  avatarUrl               String?               @map("avatar_url")
+  role                    String                @db.VarChar(50)
+  isActive                Boolean               @default(true) @map("is_active")
+  emailVerified           Boolean               @default(false) @map("email_verified")
+  lastLogin               DateTime?             @map("last_login") @db.Timestamptz(6)
+  preferences             Json                  @default("{}")
+  refreshToken            String?               @map("refresh_token")
+  createdAt               DateTime              @default(now()) @map("created_at")
+  updatedAt               DateTime              @updatedAt @map("updated_at")
+  auditLogs               AuditLog[]
+  calibrationRecords      CalibrationRecord[]   @relation("CalibratedByUser")
+  emailOtps               EmailOtp[]
+  responsibleEquipment    Equipment[]           @relation("ResponsibleStaff")
+  reviewedTests           LabTest[]             @relation("TestReviewer")
+  assignedTests           LabTest[]             @relation("TestTechnician")
+  recordedMeasurements    Measurement[]         @relation("MeasurementRecorder")
+  receivedNotifications   Notification[]        @relation("recipient")
+  sentNotifications       Notification[]        @relation("sender")
+  approvedQuotations      Quotation[]           @relation("QuotationApprovedBy")
+  preparedQuotations      Quotation[]           @relation("QuotationPreparedBy")
+  generatedReportVersions ReportVersion[]       @relation("ReportVersionGeneratedBy")
+  requestEvaluations      RequestEvaluation[]
+  statusChanges           SampleStatusHistory[] @relation("ChangedBy")
+  assignedSamples         Sample[]              @relation("AssignedTechnician")
+  createdSamples          Sample[]              @relation("CreatedBy")
+  approvedReports         TestReport[]          @relation("ApprovedBy")
+  generatedReports        TestReport[]          @relation("GeneratedBy")
+  testRevisions           TestRevision[]        @relation("RevisedBy")
+  approvedRequests        TestingRequest[]      @relation("RequestApprovedBy")
+  submittedRequests       TestingRequest[]      @relation("RequestSubmittedBy")
+  laboratory              Laboratory?           @relation(fields: [laboratoryId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([laboratoryId, role])
+  @@map("users")
+}
+
+model EmailOtp {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  purpose   String    @default("email_verification") @db.VarChar(32)
+  otpHash   String    @map("otp_hash") @db.VarChar(255)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  attempts  Int       @default(0)
+  createdAt DateTime  @default(now()) @map("created_at")
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(6)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose, createdAt(sort: Desc)])
+  @@map("email_otps")
+}
+
+model Role {
+  id           String       @id @default(uuid()) @db.Uuid
+  laboratoryId String?      @map("laboratory_id") @db.Uuid
+  name         String       @db.VarChar(100)
+  description  String?
+  isSystem     Boolean      @default(false) @map("is_system")
+  createdAt    DateTime     @default(now()) @db.Timestamptz(6)
+  permissions  Permission[]
+  laboratory   Laboratory?  @relation(fields: [laboratoryId], references: [id])
+
+  @@unique([laboratoryId, name])
+  @@map("roles")
+}
+
+model Permission {
+  id         String   @id @default(uuid()) @db.Uuid
+  roleId     String   @map("role_id") @db.Uuid
+  resource   String   @db.VarChar(100)
+  action     String   @db.VarChar(50)
+  conditions Json?
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, resource, action])
+  @@map("permissions")
+}
+
+model Project {
+  id              String           @id @default(uuid()) @db.Uuid
+  laboratoryId    String           @map("laboratory_id") @db.Uuid
+  projectCode     String           @unique @map("project_code") @db.VarChar(50)
+  name            String           @db.VarChar(255)
+  client          String           @db.VarChar(255)
+  location        String           @db.VarChar(255)
+  description     String?
+  status          String           @default("active") @db.VarChar(50)
+  startDate       DateTime?        @map("start_date") @db.Date
+  endDate         DateTime?        @map("end_date") @db.Date
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  clientId        String?          @map("client_id") @db.Uuid
+  clientRecord    Client?          @relation(fields: [clientId], references: [id])
+  laboratory      Laboratory       @relation(fields: [laboratoryId], references: [id], onDelete: Cascade)
+  samples         Sample[]
+  testingRequests TestingRequest[]
+
+  @@index([laboratoryId])
+  @@index([clientId])
+  @@index([projectCode])
+  @@map("projects")
+}
+
+model Sample {
+  id                   String                @id @default(uuid()) @db.Uuid
+  laboratoryId         String                @map("laboratory_id") @db.Uuid
+  projectId            String?               @map("project_id") @db.Uuid
+  sampleNumber         String                @unique @map("sample_number") @db.VarChar(50)
+  clientReference      String?               @map("client_reference") @db.VarChar(100)
+  materialType         String                @map("material_type") @db.VarChar(100)
+  description          String
+  sourceLocation       String                @map("source_location") @db.VarChar(255)
+  samplingDepth        String?               @map("sampling_depth") @db.VarChar(50)
+  dateSampled          DateTime?             @map("date_sampled") @db.Date
+  dateReceived         DateTime              @map("date_received") @db.Date
+  sampledBy            String?               @map("sampled_by") @db.VarChar(100)
+  receivedBy           String                @map("received_by") @db.VarChar(100)
+  priority             String                @default("normal") @db.VarChar(20)
+  condition            String                @default("intact") @db.VarChar(50)
+  storageLocation      String?               @map("storage_location") @db.VarChar(100)
+  status               String                @default("registered") @db.VarChar(30)
+  assignedTechnicianId String?               @map("assigned_technician_id") @db.Uuid
+  createdById          String?               @map("created_by_id") @db.Uuid
+  remarks              String?
+  isArchived           Boolean               @default(false) @map("is_archived")
+  dueDate              DateTime?             @map("due_date") @db.Date
+  createdAt            DateTime              @default(now()) @map("created_at")
+  updatedAt            DateTime              @updatedAt @map("updated_at")
+  requestId            String?               @map("request_id") @db.Uuid
+  qrToken              String?               @unique @default(uuid()) @map("qr_token") @db.VarChar(64)
+  quantity             Decimal?              @db.Decimal(10, 2)
+  registeredAt         DateTime?             @map("registered_at") @db.Timestamptz(6)
+  tests                LabTest[]
+  measurements         Measurement[]
+  notifications        Notification[]
+  statusHistory        SampleStatusHistory[]
+  assignedTechnician   User?                 @relation("AssignedTechnician", fields: [assignedTechnicianId], references: [id])
+  createdBy            User?                 @relation("CreatedBy", fields: [createdById], references: [id])
+  laboratory           Laboratory            @relation(fields: [laboratoryId], references: [id], onDelete: Cascade)
+  project              Project?              @relation(fields: [projectId], references: [id])
+  request              TestingRequest?       @relation(fields: [requestId], references: [id])
+  reports              TestReport[]
+
+  @@index([laboratoryId])
+  @@index([sampleNumber])
+  @@index([status])
+  @@index([materialType])
+  @@index([assignedTechnicianId])
+  @@index([requestId])
+  @@map("samples")
+}
+
+model SampleStatusHistory {
+  id          String   @id @default(uuid()) @db.Uuid
+  sampleId    String   @map("sample_id") @db.Uuid
+  fromStatus  String?  @map("from_status") @db.VarChar(30)
+  toStatus    String   @map("to_status") @db.VarChar(30)
+  changedById String   @map("changed_by_id") @db.Uuid
+  reason      String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  changedBy   User     @relation("ChangedBy", fields: [changedById], references: [id], onDelete: Cascade)
+  sample      Sample   @relation(fields: [sampleId], references: [id], onDelete: Cascade)
+
+  @@index([sampleId])
+  @@map("sample_status_histories")
+}
+
+model TestType {
+  id                    String               @id @default(uuid()) @db.Uuid
+  code                  String               @unique @db.VarChar(50)
+  name                  String               @db.VarChar(255)
+  standard              String               @db.VarChar(100)
+  category              String               @db.VarChar(50)
+  description           String?
+  defaultTurnaroundDays Int                  @default(3) @map("default_turnaround_days")
+  isActive              Boolean              @default(true) @map("is_active")
+  parametersSchema      Json                 @default("{}") @map("parameters_schema")
+  createdAt             DateTime             @default(now()) @map("created_at")
+  updatedAt             DateTime             @updatedAt @map("updated_at")
+  unit                  String               @default("No.") @db.VarChar(20)
+  unitPricePrivate      Decimal              @default(0) @map("unit_price_private") @db.Decimal(10, 2)
+  unitPricePublic       Decimal              @default(0) @map("unit_price_public") @db.Decimal(10, 2)
+  calculationRules      Json                 @default("{}") @map("calculation_rules")
+  reportTemplate        String?              @map("report_template") @db.VarChar(50)
+  tests                 LabTest[]
+  quotationItems        QuotationItem[]
+  testingRequestItems   TestingRequestItem[]
+
+  @@map("test_types")
+}
+
+model LabTest {
+  id                 String         @id @default(uuid()) @db.Uuid
+  sampleId           String         @map("sample_id") @db.Uuid
+  testTypeId         String         @map("test_type_id") @db.Uuid
+  testNumber         String         @unique @map("test_number") @db.VarChar(50)
+  technicianId       String?        @map("technician_id") @db.Uuid
+  reviewerId         String?        @map("reviewer_id") @db.Uuid
+  equipmentIds       Json           @default("[]") @map("equipment_ids")
+  status             String         @default("not_started") @db.VarChar(30)
+  rawMeasurements    Json           @default("{}") @map("raw_measurements")
+  calculatedResults  Json           @default("{}") @map("calculated_results")
+  calculationVersion String?        @default("v1.0-prototype") @map("calculation_version") @db.VarChar(50)
+  isPrototype        Boolean        @default(true) @map("is_prototype")
+  remarks            String?
+  rejectionReason    String?        @map("rejection_reason")
+  revisionNumber     Int            @default(1) @map("revision_number")
+  testDate           DateTime?      @map("test_date") @db.Date
+  startedAt          DateTime?      @map("started_at") @db.Timestamptz(6)
+  completedAt        DateTime?      @map("completed_at") @db.Timestamptz(6)
+  reviewedAt         DateTime?      @map("reviewed_at") @db.Timestamptz(6)
+  approvedAt         DateTime?      @map("approved_at") @db.Timestamptz(6)
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+  assignedAt         DateTime?      @map("assigned_at") @db.Timestamptz(6)
+  deadlineAt         DateTime?      @map("deadline_at") @db.Timestamptz(6)
+  pausedAt           DateTime?      @map("paused_at") @db.Timestamptz(6)
+  reportGeneratedAt  DateTime?      @map("report_generated_at") @db.Timestamptz(6)
+  calculations       Calculation[]
+  reviewer           User?          @relation("TestReviewer", fields: [reviewerId], references: [id])
+  sample             Sample         @relation(fields: [sampleId], references: [id], onDelete: Cascade)
+  technician         User?          @relation("TestTechnician", fields: [technicianId], references: [id])
+  testType           TestType       @relation(fields: [testTypeId], references: [id])
+  measurements       Measurement[]
+  notifications      Notification[]
+  revisions          TestRevision[]
+
+  @@index([sampleId])
+  @@index([testTypeId])
+  @@index([status])
+  @@index([technicianId])
+  @@index([reviewerId])
+  @@index([status, deadlineAt])
+  @@map("lab_tests")
+}
+
+model TestRevision {
+  id                String   @id @default(uuid()) @db.Uuid
+  testId            String   @map("test_id") @db.Uuid
+  revisionNumber    Int      @map("revision_number")
+  rawMeasurements   Json     @map("raw_measurements")
+  calculatedResults Json     @map("calculated_results")
+  changedById       String   @map("changed_by_id") @db.Uuid
+  reason            String
+  createdAt         DateTime @default(now()) @map("created_at")
+  changedBy         User     @relation("RevisedBy", fields: [changedById], references: [id], onDelete: Cascade)
+  test              LabTest  @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  @@index([testId])
+  @@map("test_revisions")
+}
+
+model Equipment {
+  id                     String              @id @default(uuid()) @db.Uuid
+  laboratoryId           String              @map("laboratory_id") @db.Uuid
+  assetNumber            String              @unique @map("asset_number") @db.VarChar(50)
+  name                   String              @db.VarChar(255)
+  category               String              @db.VarChar(100)
+  manufacturer           String?             @db.VarChar(100)
+  model                  String?             @db.VarChar(100)
+  serialNumber           String?             @map("serial_number") @db.VarChar(100)
+  location               String              @db.VarChar(100)
+  status                 String              @default("operational") @db.VarChar(30)
+  lastCalibrationDate    DateTime?           @map("last_calibration_date") @db.Date
+  nextCalibrationDate    DateTime?           @map("next_calibration_date") @db.Date
+  calibrationCertificate String?             @map("calibration_certificate") @db.VarChar(100)
+  maintenanceNotes       String?             @map("maintenance_notes")
+  assignedStaffId        String?             @map("assigned_staff_id") @db.Uuid
+  createdAt              DateTime            @default(now()) @map("created_at")
+  updatedAt              DateTime            @updatedAt @map("updated_at")
+  calibrationRecords     CalibrationRecord[]
+  assignedStaff          User?               @relation("ResponsibleStaff", fields: [assignedStaffId], references: [id])
+  laboratory             Laboratory          @relation(fields: [laboratoryId], references: [id], onDelete: Cascade)
+
+  @@index([laboratoryId])
+  @@index([status])
+  @@index([assetNumber])
+  @@map("equipment")
+}
+
+model CalibrationRecord {
+  id                String    @id @default(uuid()) @db.Uuid
+  equipmentId       String    @map("equipment_id") @db.Uuid
+  calibrationDate   DateTime  @map("calibration_date") @db.Date
+  nextDueDate       DateTime  @map("next_due_date") @db.Date
+  calibratedBy      String    @map("calibrated_by") @db.VarChar(100)
+  certificateNumber String?   @map("certificate_number") @db.VarChar(100)
+  result            String    @default("passed") @db.VarChar(30)
+  notes             String?
+  createdById       String?   @map("created_by_id") @db.Uuid
+  createdAt         DateTime  @default(now()) @map("created_at")
+  createdBy         User?     @relation("CalibratedByUser", fields: [createdById], references: [id])
+  equipment         Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  @@index([equipmentId])
+  @@map("calibration_records")
+}
+
+model TestReport {
+  id             String          @id @default(uuid()) @db.Uuid
+  laboratoryId   String          @map("laboratory_id") @db.Uuid
+  sampleId       String          @map("sample_id") @db.Uuid
+  reportNumber   String          @unique @map("report_number") @db.VarChar(50)
+  title          String          @db.VarChar(255)
+  status         String          @default("draft") @db.VarChar(30)
+  revisionNumber Int             @default(1) @map("revision_number")
+  generatedById  String          @map("generated_by_id") @db.Uuid
+  approvedById   String?         @map("approved_by_id") @db.Uuid
+  summary        String?
+  pdfUrl         String?         @map("pdf_url")
+  reportData     Json            @default("{}") @map("report_data")
+  issuedAt       DateTime?       @map("issued_at") @db.Timestamptz(6)
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  versions       ReportVersion[]
+  approvedBy     User?           @relation("ApprovedBy", fields: [approvedById], references: [id])
+  generatedBy    User            @relation("GeneratedBy", fields: [generatedById], references: [id], onDelete: Cascade)
+  laboratory     Laboratory      @relation(fields: [laboratoryId], references: [id], onDelete: Cascade)
+  sample         Sample          @relation(fields: [sampleId], references: [id], onDelete: Cascade)
+
+  @@index([laboratoryId])
+  @@index([sampleId])
+  @@index([reportNumber])
+  @@map("test_reports")
+}
+
+model Notification {
+  id           String      @id @default(uuid()) @db.Uuid
+  laboratoryId String?     @map("laboratory_id") @db.Uuid
+  senderId     String?     @map("sender_id") @db.Uuid
+  recipientId  String      @map("recipient_id") @db.Uuid
+  type         String      @db.VarChar(50)
+  title        String      @db.VarChar(255)
+  message      String?
+  channel      String?     @db.VarChar(20)
+  link         String?     @db.VarChar(255)
+  isRead       Boolean     @default(false) @map("is_read")
+  isSent       Boolean     @default(false) @map("is_sent")
+  readAt       DateTime?   @map("read_at") @db.Timestamptz(6)
+  createdAt    DateTime    @default(now()) @db.Timestamptz(6)
+  dedupeKey    String?     @unique @map("dedupe_key") @db.VarChar(180)
+  labTestId    String?     @map("lab_test_id") @db.Uuid
+  sampleId     String?     @map("sample_id") @db.Uuid
+  labTest      LabTest?    @relation(fields: [labTestId], references: [id], onDelete: Cascade)
+  laboratory   Laboratory? @relation(fields: [laboratoryId], references: [id])
+  recipient    User        @relation("recipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  sample       Sample?     @relation(fields: [sampleId], references: [id], onDelete: Cascade)
+  sender       User?       @relation("sender", fields: [senderId], references: [id])
+
+  @@index([recipientId, isRead])
+  @@index([type])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model Client {
+  id              String           @id @db.Uuid
+  laboratoryId    String           @map("laboratory_id") @db.Uuid
+  clientCode      String           @unique @map("client_code") @db.VarChar(50)
+  name            String           @db.VarChar(255)
+  clientType      String           @default("private") @map("client_type") @db.VarChar(50)
+  contactPerson   String?          @map("contact_person") @db.VarChar(100)
+  phone           String?          @db.VarChar(50)
+  email           String?          @db.VarChar(255)
+  address         String?
+  city            String?          @db.VarChar(100)
+  province        String?          @db.VarChar(100)
+  isActive        Boolean          @default(true) @map("is_active")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @map("updated_at")
+  laboratory      Laboratory       @relation(fields: [laboratoryId], references: [id], onDelete: Cascade)
+  invoices        Invoice[]
+  projects        Project[]
+  quotations      Quotation[]
+  testingRequests TestingRequest[]
+
+  @@index([laboratoryId])
+  @@index([clientCode])
+  @@index([clientType])
+  @@map("clients")
+}
+
+model TestingRequest {
+  id                     String               @id @db.Uuid
+  laboratoryId           String               @map("laboratory_id") @db.Uuid
+  clientId               String               @map("client_id") @db.Uuid
+  projectId              String?              @map("project_id") @db.Uuid
+  requestNumber          String               @unique @map("request_number") @db.VarChar(50)
+  poNumber               String?              @map("po_number") @db.VarChar(100)
+  requestType            String               @default("private") @map("request_type") @db.VarChar(20)
+  contactPerson          String?              @map("contact_person") @db.VarChar(100)
+  contactPhone           String?              @map("contact_phone") @db.VarChar(50)
+  contactEmail           String?              @map("contact_email") @db.VarChar(255)
+  location               String?              @db.VarChar(255)
+  materialSource         String?              @map("material_source") @db.VarChar(255)
+  proposedUse            String?              @map("proposed_use") @db.VarChar(255)
+  dateSampled            DateTime?            @map("date_sampled") @db.Date
+  sampledBy              String?              @map("sampled_by") @db.VarChar(100)
+  submittedBy            String?              @map("submitted_by") @db.VarChar(100)
+  resultsRequiredBy      DateTime?            @map("results_required_by") @db.Date
+  priority               String               @default("normal") @db.VarChar(20)
+  status                 String               @default("submitted") @db.VarChar(30)
+  estimatedCost          Decimal              @default(0) @map("estimated_cost") @db.Decimal(12, 2)
+  remarks                String?
+  submittedById          String?              @map("submitted_by_id") @db.Uuid
+  approvedById           String?              @map("approved_by_id") @db.Uuid
+  approvedAt             DateTime?            @map("approved_at") @db.Timestamptz(6)
+  createdAt              DateTime             @default(now()) @map("created_at")
+  updatedAt              DateTime             @map("updated_at")
+  preferredContactMethod String?              @map("preferred_contact_method") @db.VarChar(20)
+  resultsReadyAt         DateTime?            @map("results_ready_at") @db.Timestamptz(6)
+  sampleCategory         String?              @map("sample_category") @db.VarChar(50)
+  sampleDescription      String?              @map("sample_description")
+  sampleQuantity         Decimal?             @map("sample_quantity") @db.Decimal(10, 2)
+  quotations             Quotation[]
+  evaluation             RequestEvaluation?
+  samples                Sample[]
+  requestItems           TestingRequestItem[]
+  approvedByUser         User?                @relation("RequestApprovedBy", fields: [approvedById], references: [id])
+  client                 Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  laboratory             Laboratory           @relation(fields: [laboratoryId], references: [id], onDelete: Cascade)
+  project                Project?             @relation(fields: [projectId], references: [id])
+  submittedByUser        User?                @relation("RequestSubmittedBy", fields: [submittedById], references: [id])
+
+  @@index([laboratoryId, status])
+  @@index([laboratoryId])
+  @@index([requestNumber])
+  @@index([status])
+  @@index([clientId])
+  @@index([projectId])
+  @@map("testing_requests")
+}
+
+model TestingRequestItem {
+  id               String         @id @db.Uuid
+  requestId        String         @map("request_id") @db.Uuid
+  testTypeId       String         @map("test_type_id") @db.Uuid
+  quantity         Int            @default(1)
+  unitPrice        Decimal        @default(0) @map("unit_price") @db.Decimal(10, 2)
+  notes            String?
+  sampleIdentifier String?        @map("sample_identifier") @db.VarChar(100)
+  samplingDepth    String?        @map("sampling_depth") @db.VarChar(50)
+  createdAt        DateTime       @default(now()) @map("created_at")
+  request          TestingRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  testType         TestType       @relation(fields: [testTypeId], references: [id])
+
+  @@index([requestId])
+  @@index([testTypeId])
+  @@map("testing_request_items")
+}
+
+model RequestEvaluation {
+  id                  String         @id @db.Uuid
+  requestId           String         @unique @map("request_id") @db.Uuid
+  evaluatedById       String         @map("evaluated_by_id") @db.Uuid
+  methodAvailable     Boolean        @default(true) @map("method_available")
+  methodSuitable      Boolean        @default(true) @map("method_suitable")
+  equipmentAvailable  Boolean        @default(true) @map("equipment_available")
+  equipmentCalibrated Boolean        @default(true) @map("equipment_calibrated")
+  personnelCompetent  Boolean        @default(true) @map("personnel_competent")
+  sampleQuantityOk    Boolean        @default(true) @map("sample_quantity_ok")
+  sampleConditionOk   Boolean        @default(true) @map("sample_condition_ok")
+  subcontractRequired Boolean        @default(false) @map("subcontract_required")
+  subcontractorName   String?        @map("subcontractor_name") @db.VarChar(255)
+  turnaroundFeasible  Boolean        @default(true) @map("turnaround_feasible")
+  agreedDeliveryDate  DateTime?      @map("agreed_delivery_date") @db.Date
+  rateScheduleApplied String         @default("private") @map("rate_schedule_applied") @db.VarChar(20)
+  decision            String         @default("approved") @db.VarChar(30)
+  comments            String?
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @map("updated_at")
+  evaluatedBy         User           @relation(fields: [evaluatedById], references: [id], onDelete: Cascade)
+  request             TestingRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@map("request_evaluations")
+}
+
+model Quotation {
+  id                   String          @id @db.Uuid
+  laboratoryId         String          @map("laboratory_id") @db.Uuid
+  clientId             String          @map("client_id") @db.Uuid
+  requestId            String?         @map("request_id") @db.Uuid
+  quotationNumber      String          @unique @map("quotation_number") @db.VarChar(50)
+  attention            String?         @db.VarChar(100)
+  jobTitle             String          @map("job_title") @db.VarChar(255)
+  rateType             String          @default("private") @map("rate_type") @db.VarChar(20)
+  subtotalMobilisation Decimal         @default(0) @map("subtotal_mobilisation") @db.Decimal(12, 2)
+  subtotalFieldWork    Decimal         @default(0) @map("subtotal_field_work") @db.Decimal(12, 2)
+  subtotalLabTesting   Decimal         @default(0) @map("subtotal_lab_testing") @db.Decimal(12, 2)
+  subtotalOther        Decimal         @default(0) @map("subtotal_other") @db.Decimal(12, 2)
+  subtotal             Decimal         @default(0) @db.Decimal(12, 2)
+  adminSurchargeRate   Decimal         @default(0.03) @map("admin_surcharge_rate") @db.Decimal(5, 4)
+  adminSurchargeAmount Decimal         @default(0) @map("admin_surcharge_amount") @db.Decimal(12, 2)
+  discount             Decimal         @default(0) @db.Decimal(12, 2)
+  totalAmount          Decimal         @default(0) @map("total_amount") @db.Decimal(12, 2)
+  status               String          @default("draft") @db.VarChar(30)
+  validUntil           DateTime?       @map("valid_until") @db.Date
+  preparedById         String          @map("prepared_by_id") @db.Uuid
+  approvedById         String?         @map("approved_by_id") @db.Uuid
+  remarks              String?
+  createdAt            DateTime        @default(now()) @map("created_at")
+  updatedAt            DateTime        @map("updated_at")
+  invoices             Invoice[]
+  items                QuotationItem[]
+  approvedBy           User?           @relation("QuotationApprovedBy", fields: [approvedById], references: [id])
+  client               Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  laboratory           Laboratory      @relation(fields: [laboratoryId], references: [id], onDelete: Cascade)
+  preparedBy           User            @relation("QuotationPreparedBy", fields: [preparedById], references: [id], onDelete: Cascade)
+  request              TestingRequest? @relation(fields: [requestId], references: [id])
+
+  @@index([laboratoryId, status])
+  @@index([laboratoryId])
+  @@index([quotationNumber])
+  @@index([status])
+  @@index([clientId])
+  @@map("quotations")
+}
+
+model QuotationItem {
+  id          String    @id @db.Uuid
+  quotationId String    @map("quotation_id") @db.Uuid
+  testTypeId  String?   @map("test_type_id") @db.Uuid
+  itemNumber  String?   @map("item_number") @db.VarChar(20)
+  category    String    @default("lab_testing") @db.VarChar(50)
+  description String
+  quantity    Decimal   @default(1) @db.Decimal(10, 2)
+  unit        String    @default("No.") @db.VarChar(30)
+  rate        Decimal   @default(0) @db.Decimal(12, 2)
+  total       Decimal   @default(0) @db.Decimal(12, 2)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  testType    TestType? @relation(fields: [testTypeId], references: [id])
+
+  @@index([quotationId])
+  @@index([testTypeId])
+  @@map("quotation_items")
+}
+
+model Invoice {
+  id            String        @id @db.Uuid
+  laboratoryId  String        @map("laboratory_id") @db.Uuid
+  clientId      String        @map("client_id") @db.Uuid
+  quotationId   String?       @map("quotation_id") @db.Uuid
+  invoiceNumber String        @unique @map("invoice_number") @db.VarChar(50)
+  fileNumber    String?       @map("file_number") @db.VarChar(50)
+  poNumber      String?       @map("po_number") @db.VarChar(100)
+  invoiceType   String        @default("private") @map("invoice_type") @db.VarChar(20)
+  subtotal      Decimal       @default(0) @db.Decimal(12, 2)
+  adminCost     Decimal       @default(0) @map("admin_cost") @db.Decimal(12, 2)
+  totalAmount   Decimal       @default(0) @map("total_amount") @db.Decimal(12, 2)
+  status        String        @default("unpaid") @db.VarChar(30)
+  actionOfficer String?       @map("action_officer") @db.VarChar(100)
+  approvedBy    String?       @map("approved_by") @db.VarChar(100)
+  designation   String?       @db.VarChar(100)
+  dueDate       DateTime?     @map("due_date") @db.Date
+  paidAt        DateTime?     @map("paid_at") @db.Timestamptz(6)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @map("updated_at")
+  items         InvoiceItem[]
+  client        Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  laboratory    Laboratory    @relation(fields: [laboratoryId], references: [id], onDelete: Cascade)
+  quotation     Quotation?    @relation(fields: [quotationId], references: [id])
+
+  @@index([laboratoryId, status])
+  @@index([laboratoryId])
+  @@index([invoiceNumber])
+  @@index([status])
+  @@index([clientId])
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id          String   @id @db.Uuid
+  invoiceId   String   @map("invoice_id") @db.Uuid
+  itemNumber  Int      @default(1) @map("item_number")
+  description String
+  quantity    Decimal  @default(1) @db.Decimal(10, 2)
+  unit        String   @default("No.") @db.VarChar(30)
+  rate        Decimal  @default(0) @db.Decimal(12, 2)
+  total       Decimal  @default(0) @db.Decimal(12, 2)
+  createdAt   DateTime @default(now()) @map("created_at")
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("invoice_items")
+}
+
+model Measurement {
+  id              String   @id @default(uuid()) @db.Uuid
+  labTestId       String   @map("lab_test_id") @db.Uuid
+  sampleId        String   @map("sample_id") @db.Uuid
+  measurementKey  String   @map("measurement_key") @db.VarChar(120)
+  label           String   @db.VarChar(255)
+  measurementType String   @map("measurement_type") @db.VarChar(50)
+  valueNumeric    Decimal? @map("value_numeric") @db.Decimal(18, 6)
+  valueText       String?  @map("value_text")
+  unit            String?  @db.VarChar(40)
+  trialNumber     Int?     @map("trial_number")
+  revisionNumber  Int      @default(1) @map("revision_number")
+  recordedById    String   @map("recorded_by_id") @db.Uuid
+  measuredAt      DateTime @default(now()) @map("measured_at") @db.Timestamptz(6)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  labTest         LabTest  @relation(fields: [labTestId], references: [id], onDelete: Cascade)
+  recordedBy      User     @relation("MeasurementRecorder", fields: [recordedById], references: [id])
+  sample          Sample   @relation(fields: [sampleId], references: [id], onDelete: Cascade)
+
+  @@index([labTestId, revisionNumber])
+  @@index([sampleId])
+  @@map("measurements")
+}
+
+model Calculation {
+  id               String   @id @default(uuid()) @db.Uuid
+  labTestId        String   @map("lab_test_id") @db.Uuid
+  calculationKey   String   @map("calculation_key") @db.VarChar(120)
+  label            String   @db.VarChar(255)
+  formula          String
+  formulaVersion   String   @map("formula_version") @db.VarChar(50)
+  inputs           Json
+  resultNumeric    Decimal? @map("result_numeric") @db.Decimal(18, 6)
+  resultText       String?  @map("result_text")
+  unit             String?  @db.VarChar(40)
+  validationStatus String   @default("validated") @map("validation_status") @db.VarChar(50)
+  revisionNumber   Int      @default(1) @map("revision_number")
+  calculatedAt     DateTime @default(now()) @map("calculated_at") @db.Timestamptz(6)
+  labTest          LabTest  @relation(fields: [labTestId], references: [id], onDelete: Cascade)
+
+  @@index([labTestId, revisionNumber])
+  @@map("calculations")
+}
+
+model ReportVersion {
+  id            String     @id @default(uuid()) @db.Uuid
+  reportId      String     @map("report_id") @db.Uuid
+  versionNumber Int        @map("version_number")
+  fileName      String     @map("file_name") @db.VarChar(255)
+  storageKey    String     @unique @map("storage_key")
+  mimeType      String     @default("application/pdf") @map("mime_type") @db.VarChar(100)
+  byteSize      Int        @map("byte_size")
+  checksum      String     @db.VarChar(64)
+  reportData    Json       @map("report_data")
+  generatedById String     @map("generated_by_id") @db.Uuid
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  generatedBy   User       @relation("ReportVersionGeneratedBy", fields: [generatedById], references: [id])
+  report        TestReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@unique([reportId, versionNumber])
+  @@index([reportId, createdAt])
+  @@map("report_versions")
+}
+
+model SequenceCounter {
+  key       String   @id @db.VarChar(120)
+  value     Int      @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("sequence_counters")
+}
+
+model AuditLog {
+  id           String      @id @default(uuid()) @db.Uuid
+  laboratoryId String?     @map("laboratory_id") @db.Uuid
+  userId       String?     @map("user_id") @db.Uuid
+  action       String      @db.VarChar(50)
+  entityType   String?     @map("entity_type") @db.VarChar(100)
+  entityId     String?     @map("entity_id") @db.Uuid
+  changes      Json?
+  ipAddress    String?     @map("ip_address") @db.VarChar(45)
+  userAgent    String?     @map("user_agent")
+  createdAt    DateTime    @default(now()) @db.Timestamptz(6)
+  laboratory   Laboratory? @relation(fields: [laboratoryId], references: [id])
+  user         User?       @relation(fields: [userId], references: [id])
+
+  @@index([laboratoryId, createdAt])
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}

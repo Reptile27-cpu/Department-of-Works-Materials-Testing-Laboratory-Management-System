@@ -1,0 +1,462 @@
+'use client';
+
+import { useEffect, useState, useCallback } from 'react';
+import {
+  FileText,
+  Printer,
+  Download,
+  Search,
+  Plus,
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
+  RefreshCw,
+  Eye,
+  ShieldCheck,
+  Building2,
+  FlaskConical,
+  X
+} from 'lucide-react';
+import { api } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth-store';
+
+interface TestReportItem {
+  id: string;
+  reportNumber: string;
+  title: string;
+  status: string;
+  revisionNumber: number;
+  summary: string | null;
+  createdAt: string;
+  issuedAt: string | null;
+  sample: {
+    id: string;
+    sampleNumber: string;
+    materialType: string;
+    sourceLocation: string;
+    project?: {
+      code: string;
+      name: string;
+      client: string;
+    };
+  };
+  generatedBy: {
+    firstName: string;
+    lastName: string;
+    designation: string | null;
+  };
+  approvedBy?: {
+    firstName: string;
+    lastName: string;
+    designation: string | null;
+  } | null;
+}
+
+export default function ReportsPage() {
+  const user = useAuthStore((state) => state.user);
+  const canIssue = user?.role === 'lab_manager' || user?.role === 'system_admin' || user?.role === 'super_admin';
+  const [reports, setReports] = useState<TestReportItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
+  // Selected report for modal viewer
+  const [selectedReport, setSelectedReport] = useState<any | null>(null);
+  const [loadingReportDetails, setLoadingReportDetails] = useState(false);
+
+  const fetchReports = useCallback(async () => {
+    setIsLoading(true);
+    setError('');
+    try {
+      const res = await api.get('/reports', {
+        params: {
+          page,
+          pageSize: 15,
+          search: search || undefined,
+          status: statusFilter || undefined,
+        },
+      });
+      const data = res.data.data;
+      setReports(data || []);
+      if (res.data.meta) {
+        setTotalPages(res.data.meta.totalPages || 1);
+      }
+    } catch {
+      setError('Unable to load test certificates and reports.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [page, search, statusFilter]);
+
+  useEffect(() => {
+    fetchReports();
+  }, [fetchReports]);
+
+  const handleExportSamples = async () => {
+    try {
+      window.open(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/reports/export/samples`, '_blank');
+    } catch (e) {
+      console.error('Export failed:', e);
+    }
+  };
+
+  const handleViewReport = async (reportId: string) => {
+    try {
+      setLoadingReportDetails(true);
+      const res = await api.get(`/reports/${reportId}`);
+      setSelectedReport(res.data.data);
+    } catch {
+      alert('Unable to load certificate details.');
+    } finally {
+      setLoadingReportDetails(false);
+    }
+  };
+
+  const handleIssueReport = async (reportId: string) => {
+    if (!confirm('Issue this report snapshot after confirming that the sample and every associated test have been approved?')) return;
+    try {
+      await api.patch(`/reports/${reportId}/issue`);
+      fetchReports();
+      if (selectedReport && selectedReport.id === reportId) {
+        handleViewReport(reportId);
+      }
+    } catch {
+      alert('Failed to issue certificate.');
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const s = status.toLowerCase();
+    if (s === 'issued' || s === 'approved') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-950/60 text-emerald-400 border border-emerald-800">
+          <CheckCircle2 className="w-3.5 h-3.5" /> Issued
+        </span>
+      );
+    }
+    if (s === 'under_review') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-950/60 text-amber-400 border border-amber-800">
+          <Clock className="w-3.5 h-3.5" /> Under Review
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+        Draft
+      </span>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white flex items-center gap-3">
+            <FileText className="w-7 h-7 text-teal-400" />
+            Materials Test Certificates & Reports
+          </h1>
+          <p className="text-slate-400 mt-1">
+            Stored report snapshots and sample registers. Official Department report templates are not yet generated by this screen.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleExportSamples}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 text-slate-200 border border-slate-700 hover:bg-slate-700 font-medium text-sm transition-colors shadow-sm"
+          >
+            <Download className="w-4 h-4 text-teal-400" />
+            Export Sample Register (.xlsx)
+          </button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 flex flex-col sm:flex-row gap-4 justify-between items-center">
+        <div className="relative w-full sm:w-80">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+          <input
+            type="text"
+            placeholder="Search report #, sample #, or title..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-4 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-teal-500"
+          />
+        </div>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-teal-500"
+          >
+            <option value="">All Statuses</option>
+            <option value="draft">Draft</option>
+            <option value="under_review">Under Review</option>
+            <option value="issued">Issued / Approved</option>
+          </select>
+          <button
+            onClick={() => fetchReports()}
+            className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700"
+            title="Refresh"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="rounded-xl border border-slate-800 bg-slate-900 overflow-hidden shadow-sm">
+        {isLoading ? (
+          <div className="p-12 text-center text-slate-400">
+            <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-teal-400" />
+            Loading test certificates...
+          </div>
+        ) : error ? (
+          <div className="p-8 text-center text-rose-400 bg-rose-950/20 border-b border-rose-900/50">
+            {error}
+          </div>
+        ) : reports.length === 0 ? (
+          <div className="p-12 text-center text-slate-400">
+            <FileText className="w-8 h-8 mx-auto mb-3 text-slate-600" />
+            <p className="font-semibold text-slate-300">No test certificates generated yet</p>
+            <p className="text-xs text-slate-500 mt-1">
+              Certificates can be generated directly from completed and verified laboratory test worksheets.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm text-slate-300">
+              <thead className="bg-slate-950/80 text-xs uppercase tracking-wider text-slate-400 border-b border-slate-800">
+                <tr>
+                  <th className="py-3.5 px-4 font-semibold">Report Number</th>
+                  <th className="py-3.5 px-4 font-semibold">Certificate Title</th>
+                  <th className="py-3.5 px-4 font-semibold">Sample Reference</th>
+                  <th className="py-3.5 px-4 font-semibold">Project</th>
+                  <th className="py-3.5 px-4 font-semibold">Status</th>
+                  <th className="py-3.5 px-4 font-semibold">Generated By</th>
+                  <th className="py-3.5 px-4 font-semibold">Date</th>
+                  <th className="py-3.5 px-4 font-semibold text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {reports.map((report) => (
+                  <tr key={report.id} className="hover:bg-slate-800/40 transition-colors">
+                    <td className="py-3.5 px-4 font-mono font-medium text-teal-400">
+                      {report.reportNumber}
+                    </td>
+                    <td className="py-3.5 px-4 font-medium text-slate-200">
+                      {report.title}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <div>
+                        <span className="font-mono text-xs text-blue-400">
+                          {report.sample?.sampleNumber}
+                        </span>
+                        <span className="text-xs text-slate-400 ml-2">
+                          ({report.sample?.materialType})
+                        </span>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4 text-xs text-slate-300">
+                      {report.sample?.project?.name || 'Department of Works'}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      {getStatusBadge(report.status)}
+                    </td>
+                    <td className="py-3.5 px-4 text-xs text-slate-400">
+                      {report.generatedBy ? `${report.generatedBy.firstName} ${report.generatedBy.lastName}` : 'System'}
+                    </td>
+                    <td className="py-3.5 px-4 text-xs text-slate-400">
+                      {new Date(report.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="py-3.5 px-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleViewReport(report.id)}
+                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                          title="View Certificate"
+                        >
+                          <Eye className="w-4 h-4 text-teal-400" />
+                        </button>
+                        {canIssue && report.status !== 'issued' && (
+                          <button
+                            onClick={() => handleIssueReport(report.id)}
+                            className="p-1.5 rounded-lg bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-400 border border-emerald-800/80 transition-colors"
+                          title="Issue report snapshot after approvals"
+                          >
+                            <ShieldCheck className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Certificate Modal Viewer */}
+      {selectedReport && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 sm:p-8 space-y-6 shadow-2xl relative text-slate-200">
+            {/* Modal Controls */}
+            <div className="flex justify-between items-center pb-4 border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <span className="font-mono text-teal-400 font-bold text-lg">
+                  {selectedReport.reportNumber}
+                </span>
+                {getStatusBadge(selectedReport.status)}
+                <span className="text-xs font-semibold uppercase tracking-wide text-amber-300">Stored snapshot · not an official template report</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => window.print()}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium flex items-center gap-2 border border-slate-700"
+                >
+                  <Printer className="w-4 h-4 text-teal-400" />
+                  Print Snapshot Preview
+                </button>
+                <button
+                  onClick={() => setSelectedReport(null)}
+                  className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Printable Document Body */}
+            <div className="bg-white text-slate-900 p-8 rounded-xl shadow-inner space-y-6 print:m-0 print:p-0">
+              {/* Official Header */}
+              <div className="border-b-2 border-blue-900 pb-4 text-center space-y-1">
+                <h2 className="text-xl font-bold tracking-tight text-blue-950 uppercase">
+                  Independent State of Papua New Guinea
+                </h2>
+                <h3 className="text-lg font-bold text-slate-800">
+                  DEPARTMENT OF WORKS AND HIGHWAYS
+                </h3>
+                <p className="text-xs font-semibold text-slate-600">
+                  MATERIALS TESTING & QUALITY ASSURANCE DIVISION
+                </p>
+                <p className="text-xs text-slate-500">
+                  Central Materials Testing Laboratory | P.O. Box 1108, Boroko, NCD, Papua New Guinea
+                </p>
+                <div className="inline-block mt-2 px-3 py-1 bg-blue-100 text-blue-900 text-xs font-bold rounded uppercase tracking-wider">
+                  Official Materials Testing Certificate
+                </div>
+              </div>
+
+              {/* Certificate Metadata */}
+              <div className="grid grid-cols-2 gap-4 text-xs">
+                <div className="p-3 bg-slate-50 rounded border border-slate-200 space-y-1">
+                  <p className="font-bold text-slate-700 uppercase tracking-wider text-[10px]">Sample Specimen</p>
+                  <p><span className="font-semibold">Sample Number:</span> {selectedReport.sample?.sampleNumber}</p>
+                  <p><span className="font-semibold">Material Type:</span> {selectedReport.sample?.materialType}</p>
+                  <p><span className="font-semibold">Description:</span> {selectedReport.sample?.description}</p>
+                  <p><span className="font-semibold">Source Location:</span> {selectedReport.sample?.sourceLocation}</p>
+                  <p><span className="font-semibold">Date Received:</span> {selectedReport.sample?.dateReceived ? new Date(selectedReport.sample.dateReceived).toLocaleDateString() : 'N/A'}</p>
+                </div>
+                <div className="p-3 bg-slate-50 rounded border border-slate-200 space-y-1">
+                  <p className="font-bold text-slate-700 uppercase tracking-wider text-[10px]">Project & Authority</p>
+                  <p><span className="font-semibold">Project Code:</span> {selectedReport.sample?.project?.projectCode || 'N/A'}</p>
+                  <p><span className="font-semibold">Project Name:</span> {selectedReport.sample?.project?.name || 'Department of Works'}</p>
+                  <p><span className="font-semibold">Client Authority:</span> {selectedReport.sample?.project?.client || selectedReport.sample?.clientReference || 'PNG DOW'}</p>
+                  <p><span className="font-semibold">Certificate Date:</span> {new Date(selectedReport.createdAt).toLocaleDateString()}</p>
+                  <p><span className="font-semibold">Revision:</span> Rev {selectedReport.revisionNumber || 1}</p>
+                </div>
+              </div>
+
+              {/* Summary */}
+              <div className="text-xs text-slate-700 italic border-l-2 border-teal-600 pl-3 py-1">
+                {selectedReport.summary || 'Official civil laboratory test results verified under applicable Australian / ASTM standards.'}
+              </div>
+
+              {/* Test Results Table */}
+              <div className="space-y-2">
+                <h4 className="font-bold text-xs uppercase tracking-wider text-slate-800">
+                  Laboratory Test Schedule & Verified Results
+                </h4>
+                <div className="border border-slate-200 rounded overflow-hidden">
+                  <table className="w-full text-left text-xs text-slate-800">
+                    <thead className="bg-slate-100 font-semibold border-b border-slate-200">
+                      <tr>
+                        <th className="p-2">Test Number</th>
+                        <th className="p-2">Test Name</th>
+                        <th className="p-2">Standard</th>
+                        <th className="p-2">Status</th>
+                        <th className="p-2">Primary Calculation</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {selectedReport.sample?.tests?.map((t: any) => (
+                        <tr key={t.id}>
+                          <td className="p-2 font-mono font-medium">{t.testNumber}</td>
+                          <td className="p-2 font-medium">{t.testType?.name}</td>
+                          <td className="p-2 text-slate-600">{t.testType?.standard}</td>
+                          <td className="p-2 uppercase font-semibold text-[10px]">{t.status}</td>
+                          <td className="p-2 font-mono font-semibold text-blue-900">
+                            {t.calculatedResults?.moistureContentPercent !== undefined
+                              ? `${t.calculatedResults.moistureContentPercent}% Moisture`
+                              : t.calculatedResults?.maximumDryDensity
+                              ? `MDD: ${t.calculatedResults.maximumDryDensity} t/m³ | OMC: ${t.calculatedResults.optimumMoistureContent}%`
+                              : t.calculatedResults?.cbrPercent !== undefined
+                              ? `CBR: ${t.calculatedResults.cbrPercent}%`
+                              : t.calculatedResults?.plasticityIndex !== undefined
+                              ? `LL: ${t.calculatedResults.liquidLimit} | PI: ${t.calculatedResults.plasticityIndex}`
+                              : 'Verified Valid'}
+                          </td>
+                        </tr>
+                      )) || (
+                        <tr>
+                          <td colSpan={5} className="p-3 text-center text-slate-500">
+                            No individual test schedule records attached.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Signatures & Seal */}
+              <div className="grid grid-cols-2 gap-8 pt-8 border-t border-slate-200 text-xs">
+                <div className="space-y-2">
+                  <p className="font-semibold text-slate-700">Prepared & Tested by:</p>
+                  <div className="h-12 border-b border-slate-300"></div>
+                  <p className="font-bold text-slate-800">
+                    {selectedReport.generatedBy?.firstName} {selectedReport.generatedBy?.lastName}
+                  </p>
+                  <p className="text-slate-500">{selectedReport.generatedBy?.designation || 'Materials Testing Technician'}</p>
+                </div>
+                <div className="space-y-2">
+                  <p className="font-semibold text-slate-700">Reviewed & Approved by:</p>
+                  <div className="h-12 border-b border-slate-300"></div>
+                  <p className="font-bold text-slate-800">
+                    {selectedReport.approvedBy
+                      ? `${selectedReport.approvedBy.firstName} ${selectedReport.approvedBy.lastName}`
+                      : 'Supervising Materials Engineer'}
+                  </p>
+                  <p className="text-slate-500">
+                    {selectedReport.approvedBy?.designation || 'Senior Materials Engineer, DOW PNG'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Disclaimer */}
+              <div className="text-[10px] text-slate-500 border-t border-slate-200 pt-3">
+                Notice: The test results in this certificate relate solely to the specimen received and tested in the laboratory.
+                This document shall not be reproduced except in full without the express written approval of the Department of Works Central Materials Testing Laboratory.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
