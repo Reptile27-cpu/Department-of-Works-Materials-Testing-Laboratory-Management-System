@@ -19,30 +19,33 @@ interface LabTestItem {
   status: string;
   testDate: string;
   summary: string | null;
-  sample: {
+  sample?: {
     id: string;
     sampleNumber: string;
     materialType: string;
-    location: string;
-    project: {
-      code: string;
+    location?: string;
+    sourceLocation?: string;
+    clientReference?: string | null;
+    project?: {
+      code?: string;
+      projectCode?: string;
       name: string;
-    };
-  };
-  testType: {
+    } | null;
+  } | null;
+  testType?: {
     code: string;
     name: string;
     standard: string;
-    category: string;
-  };
+    category?: string;
+  } | null;
   technician?: {
     firstName: string;
     lastName: string;
-  };
+  } | null;
   reviewer?: {
     firstName: string;
     lastName: string;
-  };
+  } | null;
 }
 
 export default function TestsRegisterPage() {
@@ -78,16 +81,18 @@ export default function TestsRegisterPage() {
     fetchTests();
   };
 
-  // Compute stat counts
+  // Compute stat counts (case-insensitive)
   const totalCount = tests.length;
-  const inProgressCount = tests.filter((t) => t.status === 'IN_PROGRESS').length;
-  const awaitingReviewCount = tests.filter((t) => t.status === 'AWAITING_REVIEW').length;
-  const approvedCount = tests.filter((t) => t.status === 'APPROVED').length;
-  const returnedCount = tests.filter((t) => t.status === 'RETURNED').length;
+  const inProgressCount = tests.filter((t) => (t.status || '').toUpperCase() === 'IN_PROGRESS').length;
+  const awaitingReviewCount = tests.filter((t) => (t.status || '').toUpperCase() === 'AWAITING_REVIEW').length;
+  const approvedCount = tests.filter((t) => (t.status || '').toUpperCase() === 'APPROVED').length;
+  const returnedCount = tests.filter((t) => (t.status || '').toUpperCase() === 'RETURNED').length;
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
+    const s = (status || '').toUpperCase();
+    switch (s) {
       case 'PENDING':
+      case 'NOT_STARTED':
         return <span className="rounded-full bg-slate-800 px-2.5 py-0.5 text-[11px] font-semibold text-slate-400 border border-slate-700">Pending</span>;
       case 'IN_PROGRESS':
         return <span className="rounded-full bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-amber-400 border border-amber-500/20">In Progress</span>;
@@ -234,28 +239,34 @@ export default function TestsRegisterPage() {
                       {test.testNumber}
                     </td>
                     <td className="px-4 py-3.5">
-                      <Link
-                        href={`/samples/${test.sample.id}`}
-                        className="font-mono font-semibold text-white hover:text-amber-400 block"
-                      >
-                        {test.sample.sampleNumber}
-                      </Link>
+                      {test.sample ? (
+                        <Link
+                          href={`/samples/${test.sample.id}`}
+                          className="font-mono font-semibold text-white hover:text-amber-400 block"
+                        >
+                          {test.sample.sampleNumber}
+                        </Link>
+                      ) : (
+                        <span className="font-mono text-slate-500">—</span>
+                      )}
                       <span className="text-[11px] text-slate-400 block truncate max-w-[160px]">
-                        {test.sample.materialType}
+                        {test.sample?.materialType || 'General Sample'}
                       </span>
                     </td>
                     <td className="px-4 py-3.5">
-                      <span className="font-semibold text-white block">{test.testType.name}</span>
+                      <span className="font-semibold text-white block">
+                        {test.testType?.name || 'Standard Test'}
+                      </span>
                       <span className="font-mono text-[10px] text-slate-400 block">
-                        {test.testType.standard}
+                        {test.testType?.standard || '—'}
                       </span>
                     </td>
                     <td className="px-4 py-3.5 max-w-[200px]">
                       <span className="font-semibold text-slate-200 block truncate">
-                        {test.sample.project.code}
+                        {test.sample?.project?.projectCode || test.sample?.project?.code || (test.sample?.clientReference ? `Ref: ${test.sample.clientReference}` : 'Direct Submission')}
                       </span>
                       <span className="text-[11px] text-slate-400 block truncate">
-                        {test.sample.project.name}
+                        {test.sample?.project?.name || test.sample?.sourceLocation || 'No Project Assigned'}
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3.5 text-slate-400">
