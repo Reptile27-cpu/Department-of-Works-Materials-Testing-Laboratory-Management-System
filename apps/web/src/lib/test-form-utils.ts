@@ -20,6 +20,7 @@ export async function downloadTestFormPdf(endpointUrl: string, defaultFilename: 
     const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
     const response = await fetch(url + (url.includes('?') ? '&' : '?') + 'download=true', {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: 'include',
     });
 
     if (!response.ok) {
@@ -50,6 +51,7 @@ export async function printTestFormPdf(endpointUrl: string): Promise<void> {
     const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
     const response = await fetch(url, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: 'include',
     });
 
     if (!response.ok) {
@@ -100,6 +102,7 @@ export async function getTestFormPreviewUrl(endpointUrl: string): Promise<string
   const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
   const response = await fetch(url, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
+    credentials: 'include',
   });
 
   if (!response.ok) {

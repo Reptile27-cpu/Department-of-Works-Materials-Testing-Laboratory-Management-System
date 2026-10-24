@@ -4,13 +4,18 @@ import { useState, useEffect } from 'react';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { api } from '@/lib/api';
+import TestFormViewerModal from '@/components/test-form-viewer-modal';
+import { printTestFormPdf } from '@/lib/test-form-utils';
 import {
   FileText,
   Search,
   ArrowRight,
   FlaskConical,
   RefreshCw,
-  Plus
+  Plus,
+  Printer,
+  Eye,
+  QrCode
 } from 'lucide-react';
 
 interface LabTestItem {
@@ -54,6 +59,29 @@ export default function TestsRegisterPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [testTypeFilter, setTestTypeFilter] = useState('');
+
+  // Modal viewer state for QR-stamped official form
+  const [viewerModalOpen, setViewerModalOpen] = useState(false);
+  const [selectedFormContext, setSelectedFormContext] = useState<{
+    title: string;
+    testCode: string;
+    testStandard?: string;
+    sampleNumber?: string;
+    pdfEndpoint: string;
+    defaultFilename?: string;
+  } | null>(null);
+
+  const handlePreviewForm = (test: LabTestItem) => {
+    setSelectedFormContext({
+      title: test.testType?.name || 'Standard Laboratory Test Form',
+      testCode: test.testType?.code || 'TEST',
+      testStandard: test.testType?.standard,
+      sampleNumber: test.sample?.sampleNumber || test.testNumber,
+      pdfEndpoint: `/test-forms/test/${test.id}/pdf`,
+      defaultFilename: `${test.sample?.sampleNumber || test.testNumber}_${test.testType?.code || 'Test'}_Form.pdf`,
+    });
+    setViewerModalOpen(true);
+  };
 
   const fetchTests = async () => {
     try {
@@ -121,7 +149,15 @@ export default function TestsRegisterPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/samples/scan"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-teal-500/30 bg-teal-500/10 px-3 py-2 text-xs font-semibold text-teal-300 hover:bg-teal-500/20 transition shadow-sm"
+            title="Scan specimen barcodes or print official form bundles"
+          >
+            <QrCode className="h-3.5 w-3.5" />
+            <span>QR Scan &amp; Batch Print</span>
+          </Link>
           <button
             onClick={() => fetchTests()}
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-700 transition"
@@ -295,12 +331,34 @@ export default function TestsRegisterPage() {
                       {getStatusBadge(test.status)}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3.5 text-right">
-                      <Link
-                        href={`/tests/${test.id}`}
-                        className="inline-flex items-center gap-1 rounded bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-200 hover:bg-slate-700 hover:text-white border border-slate-700 transition"
-                      >
-                        Worksheet <ArrowRight className="h-3 w-3" />
-                      </Link>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handlePreviewForm(test)}
+                          className="inline-flex items-center gap-1 rounded bg-slate-800 px-2.5 py-1 text-xs font-semibold text-teal-400 hover:bg-slate-700 hover:text-teal-300 border border-slate-700 transition"
+                          title="Preview QR-stamped official test form"
+                        >
+                          <Eye className="h-3 w-3" />
+                          <span className="hidden sm:inline">Preview</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => printTestFormPdf(`/test-forms/test/${test.id}/pdf`)}
+                          className="inline-flex items-center gap-1 rounded bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-400 hover:bg-amber-400 hover:text-slate-950 border border-amber-500/30 transition shadow-sm"
+                          title="Print official laboratory test form with scannable QR code"
+                        >
+                          <Printer className="h-3 w-3" />
+                          <span>Print Form</span>
+                        </button>
+                        <Link
+                          href={`/tests/${test.id}`}
+                          className="inline-flex items-center gap-1 rounded bg-slate-800 px-2.5 py-1 text-xs font-semibold text-slate-200 hover:bg-slate-700 hover:text-white border border-slate-700 transition"
+                          title="Open measurement worksheet"
+                        >
+                          <span>Worksheet</span>
+                          <ArrowRight className="h-3 w-3" />
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -309,6 +367,20 @@ export default function TestsRegisterPage() {
           </div>
         )}
       </div>
+
+      {/* PDF Form Viewer Modal */}
+      {selectedFormContext && (
+        <TestFormViewerModal
+          isOpen={viewerModalOpen}
+          onClose={() => setViewerModalOpen(false)}
+          title={selectedFormContext.title}
+          testCode={selectedFormContext.testCode}
+          testStandard={selectedFormContext.testStandard}
+          sampleNumber={selectedFormContext.sampleNumber}
+          pdfEndpoint={selectedFormContext.pdfEndpoint}
+          defaultFilename={selectedFormContext.defaultFilename}
+        />
+      )}
     </div>
   );
 }
