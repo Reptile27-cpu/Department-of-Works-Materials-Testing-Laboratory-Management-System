@@ -1,19 +1,38 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Loader2, ShieldCheck, CheckCircle2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { Eye, EyeOff, Loader2, ShieldCheck, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth-store';
 import { api } from '@/lib/api';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
-  const { login } = useAuthStore();
+  const searchParams = useSearchParams();
+  const { user, isAuthenticated, isLoading: authLoading, login } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState({ email: '', password: '' });
+
+  const sessionExpired = searchParams?.get('message') === 'session_expired';
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && !authLoading && user) {
+      if (user.mustChangePassword) {
+        router.replace('/change-password');
+      } else if (user.role === 'system_admin' || user.role === 'super_admin') {
+        router.replace('/system-admin');
+      } else if (user.role === 'lab_worker' || user.email === 'labworker@dow.gov.pg') {
+        router.replace('/worker/select');
+      } else {
+        router.replace('/dashboard');
+      }
+    }
+  }, [isAuthenticated, authLoading, user, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,21 +41,21 @@ export default function LoginPage() {
 
     try {
       const response = await api.post('/auth/login', form);
-      const { user, accessToken, refreshToken } = response.data.data;
+      const { user: loggedInUser, accessToken, refreshToken } = response.data.data;
 
-      login(user, accessToken, refreshToken);
+      login(loggedInUser, accessToken, refreshToken);
 
-      if (user.mustChangePassword) {
+      if (loggedInUser.mustChangePassword) {
         router.push('/change-password');
         return;
       }
 
-      if (user.role === 'system_admin' || user.role === 'super_admin') {
+      if (loggedInUser.role === 'system_admin' || loggedInUser.role === 'super_admin') {
         router.push('/system-admin');
         return;
       }
 
-      if (user.role === 'lab_worker' || user.email === 'labworker@dow.gov.pg') {
+      if (loggedInUser.role === 'lab_worker' || loggedInUser.email === 'labworker@dow.gov.pg') {
         router.push('/worker/select');
         return;
       }
@@ -70,7 +89,7 @@ export default function LoginPage() {
         <div className="relative z-10">
           <div className="flex items-center gap-4 mb-8">
             <div className="w-14 h-14 bg-amber-400/10 rounded-xl flex items-center justify-center border border-amber-400/30 p-2 shadow-lg">
-              <img src="/logo.png" alt="DoW Logo" className="w-10 h-10 object-contain" />
+              <Image src="/logo.png" alt="DoW Logo" width={40} height={40} className="w-10 h-10 object-contain" priority />
             </div>
             <div>
               <span className="text-xl font-bold tracking-tight text-white block">
@@ -129,7 +148,7 @@ export default function LoginPage() {
           {/* Mobile Header */}
           <div className="lg:hidden text-center mb-6">
             <div className="inline-flex w-14 h-14 bg-amber-400/10 border border-amber-400/30 rounded-xl items-center justify-center p-2 mb-3">
-              <img src="/logo.png" alt="DoW Logo" className="w-10 h-10 object-contain" />
+              <Image src="/logo.png" alt="DoW Logo" width={40} height={40} className="w-10 h-10 object-contain" priority />
             </div>
             <h2 className="text-xl font-bold text-white">DoW Materials Laboratory</h2>
             <p className="text-xs text-amber-400 font-medium">Department of Works &amp; Highways</p>
@@ -141,6 +160,13 @@ export default function LoginPage() {
               Enter your authorized Department of Works credentials
             </p>
           </div>
+
+          {sessionExpired && (
+            <div className="p-3.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>Your session has expired. Please sign in again with your Department credentials.</span>
+            </div>
+          )}
 
           {error && (
             <div className="p-3.5 rounded-lg bg-rose-950/40 border border-rose-800 text-rose-300 text-xs">
@@ -178,6 +204,7 @@ export default function LoginPage() {
                 />
                 <button
                   type="button"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
                   onClick={() => setShowPassword(!showPassword)}
                 >
@@ -217,5 +244,13 @@ export default function LoginPage() {
         </motion.div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-950" />}>
+      <LoginForm />
+    </Suspense>
   );
 }

@@ -718,6 +718,33 @@ export class AuthService {
     logger.info(`User ${userId} logged out`);
   }
 
+  async logoutByRefreshToken(refreshToken: string) {
+    try {
+      const user = await prisma.user.findFirst({
+        where: {
+          refreshToken,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (user) {
+        await prisma.user.update({
+          where: {
+            id: user.id,
+          },
+          data: {
+            refreshToken: null,
+          },
+        });
+        logger.info(`User ${user.id} logged out via refresh token revocation`);
+      }
+    } catch (err) {
+      logger.warn('Failed to revoke refresh token by value:', err);
+    }
+  }
+
   // ==================== Get Profile ====================
 
   async getProfile(userId: string) {

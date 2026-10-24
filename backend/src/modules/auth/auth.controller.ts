@@ -6,6 +6,26 @@ import {
   RegisterInput,
 } from './auth.validation';
 
+export const getRefreshTokenCookieOptions = () => {
+  const isProd = process.env.NODE_ENV === 'production';
+  const configuredSameSite = process.env.COOKIE_SAME_SITE as 'lax' | 'strict' | 'none' | undefined;
+  const sameSite: 'lax' | 'strict' | 'none' = configuredSameSite || (isProd ? 'none' : 'lax');
+  const secure = isProd || sameSite === 'none';
+
+  return {
+    httpOnly: true,
+    secure,
+    sameSite,
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: '/api/v1/auth',
+  };
+};
+
+export const getClearRefreshTokenCookieOptions = () => {
+  const { maxAge, ...clearOptions } = getRefreshTokenCookieOptions();
+  return clearOptions;
+};
+
 export class AuthController {
   // ==================== Login ====================
 
@@ -19,13 +39,7 @@ export class AuthController {
       const result = await authService.login(input);
 
       // Set refresh token as HTTP-only cookie
-      res.cookie('refreshToken', result.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-        path: '/api/v1/auth',
-      });
+      res.cookie('refreshToken', result.refreshToken, getRefreshTokenCookieOptions());
 
       res.json({
         success: true,
@@ -164,13 +178,7 @@ export class AuthController {
         await authService.refreshToken(refreshToken);
 
       // Rotate the refresh token cookie
-      res.cookie('refreshToken', result.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-        path: '/api/v1/auth',
-      });
+      res.cookie('refreshToken', result.refreshToken, getRefreshTokenCookieOptions());
 
       res.json({
         success: true,
@@ -193,18 +201,16 @@ export class AuthController {
   ) {
     try {
       const userId = req.user?.userId;
+      const refreshToken = req.body?.refreshToken || req.cookies?.refreshToken;
 
       if (userId) {
         await authService.logout(userId);
+      } else if (refreshToken) {
+        await authService.logoutByRefreshToken(refreshToken);
       }
 
-      // Clear refresh token cookie
-      res.clearCookie('refreshToken', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        path: '/api/v1/auth',
-      });
+      // Clear refresh token cookie with matching options
+      res.clearCookie('refreshToken', getClearRefreshTokenCookieOptions());
 
       res.json({
         success: true,

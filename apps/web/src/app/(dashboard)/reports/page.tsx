@@ -1,4 +1,5 @@
 'use client';
+import { TableSkeleton, CardGridSkeleton, DetailViewSkeleton, Skeleton } from '@/components/ui/skeleton';
 
 import { useEffect, useState, useCallback } from 'react';
 import {
@@ -211,10 +212,7 @@ export default function ReportsPage() {
       {/* Table */}
       <div className="rounded-xl border border-slate-800 bg-slate-900 overflow-hidden shadow-sm">
         {isLoading ? (
-          <div className="p-12 text-center text-slate-400">
-            <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-teal-400" />
-            Loading test certificates...
-          </div>
+          <TableSkeleton columns={6} rows={6} showHeader={false} />
         ) : error ? (
           <div className="p-8 text-center text-rose-400 bg-rose-950/20 border-b border-rose-900/50">
             {error}

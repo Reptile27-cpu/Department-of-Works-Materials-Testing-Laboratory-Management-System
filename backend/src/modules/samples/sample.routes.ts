@@ -165,6 +165,7 @@ sampleRoutes.get('/scan/:token', authenticate, async (req: Request, res: Respons
     const orConditions: any[] = [
       { qrToken: rawToken },
       { sampleNumber: rawToken },
+      { tests: { some: { testNumber: rawToken } } },
     ];
     if (extractedQrToken) orConditions.push({ qrToken: extractedQrToken });
     if (extractedSampleNumber) orConditions.push({ sampleNumber: extractedSampleNumber });
@@ -175,6 +176,23 @@ sampleRoutes.get('/scan/:token', authenticate, async (req: Request, res: Respons
     const sample = await prisma.sample.findFirst({
       where: { OR: orConditions },
       include: {
+        request: {
+          select: {
+            id: true,
+            requestNumber: true,
+            location: true,
+            materialSource: true,
+            sampleDescription: true,
+            sampleQuantity: true,
+            status: true,
+            client: {
+              select: { name: true, clientCode: true },
+            },
+            project: {
+              select: { name: true, projectCode: true },
+            },
+          },
+        },
         project: {
           select: { id: true, name: true, projectCode: true, client: true, location: true },
         },

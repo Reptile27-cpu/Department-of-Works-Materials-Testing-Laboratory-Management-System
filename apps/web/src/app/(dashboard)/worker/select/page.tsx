@@ -1,4 +1,5 @@
 'use client';
+import { TableSkeleton, CardGridSkeleton, DetailViewSkeleton, Skeleton } from '@/components/ui/skeleton';
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -140,10 +141,7 @@ export default function WorkerSelectPage() {
         </div>
 
         {workersLoading && workers.length === 0 ? (
-          <div className="p-12 text-center rounded-2xl bg-slate-900 border border-slate-800 text-slate-400">
-            <RefreshCw className="w-6 h-6 animate-spin mx-auto text-amber-400 mb-2" />
-            Loading authorized laboratory personnel identities...
-          </div>
+          <CardGridSkeleton count={6} columns={3} />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {workers.map((worker) => {

@@ -76,6 +76,7 @@ const config: Config = {
         'slide-up': 'slideUp 0.15s ease-out',
         'skeleton': 'skeleton 1.5s ease-in-out infinite',
         'slide-in-right': 'slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+        'subtle-progress': 'subtleProgress 1.4s ease-in-out infinite',
       },
       keyframes: {
         fadeIn: {
@@ -94,6 +95,11 @@ const config: Config = {
           '0%': { transform: 'translateX(100%)', opacity: '0' },
           '100%': { transform: 'translateX(0)', opacity: '1' },
         },
+        subtleProgress: {
+          '0%': { transform: 'translateX(-100%)' },
+          '50%': { transform: 'translateX(0%)' },
+          '100%': { transform: 'translateX(100%)' },
+        },
       },
     },
   },
@@ -101,4 +107,3 @@ const config: Config = {
 };
 
 export default config;
-

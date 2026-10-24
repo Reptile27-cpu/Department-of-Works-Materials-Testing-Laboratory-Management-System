@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { TableSkeleton } from '@/components/ui/skeleton';
 import { api } from '@/lib/api';
 import {
   Wrench,
@@ -314,9 +315,7 @@ export default function EquipmentPage() {
       {/* Equipment Table */}
       <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/90 shadow-sm">
         {loading ? (
-          <div className="flex h-64 items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-700 border-t-amber-500" />
-          </div>
+          <TableSkeleton columns={8} rows={6} showHeader={false} />
         ) : equipment.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-12 text-center">
             <Wrench className="h-12 w-12 text-slate-600 mb-3" />

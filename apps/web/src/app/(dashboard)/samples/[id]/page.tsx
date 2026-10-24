@@ -1,10 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { DetailViewSkeleton } from '@/components/ui/skeleton';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import QRCode from 'qrcode';
 import { api } from '@/lib/api';
+import TestFormViewerModal from '@/components/test-form-viewer-modal';
+import { printTestFormPdf, downloadTestFormPdf } from '@/lib/test-form-utils';
 import {
   ArrowLeft,
   FlaskConical,
@@ -22,6 +25,8 @@ import {
   QrCode,
   Copy,
   Check,
+  Eye,
+  Download,
 } from 'lucide-react';
 
 interface SampleDetail {
@@ -146,6 +151,60 @@ export default function SampleDetailPage() {
   // Print Custody Tag
   const [showTagModal, setShowTagModal] = useState(false);
 
+  // Form Viewer Modal State
+  const [viewerModalOpen, setViewerModalOpen] = useState(false);
+  const [selectedFormContext, setSelectedFormContext] = useState<{
+    title: string;
+    testCode: string;
+    testStandard?: string;
+    sampleNumber?: string;
+    pdfEndpoint: string;
+    hasTemplate?: boolean;
+    defaultFilename?: string;
+  } | null>(null);
+
+  const handleOpenPreview = (test: any) => {
+    if (!sample) return;
+    setSelectedFormContext({
+      title: test.testType?.name || 'Laboratory Test Form',
+      testCode: test.testType?.code || 'TEST',
+      testStandard: test.testType?.standard,
+      sampleNumber: sample.sampleNumber,
+      pdfEndpoint: `/test-forms/test/${test.id}/pdf`,
+      defaultFilename: `${sample.sampleNumber}_${test.testType?.code || 'Test'}_Form.pdf`,
+    });
+    setViewerModalOpen(true);
+  };
+
+  const handlePrintForm = (testId: string) => {
+    printTestFormPdf(`/test-forms/test/${testId}/pdf`);
+  };
+
+  const handleDownloadForm = (test: any) => {
+    if (!sample) return;
+    downloadTestFormPdf(
+      `/test-forms/test/${test.id}/pdf`,
+      `${sample.sampleNumber}_${test.testType?.code || 'Test'}_Form.pdf`
+    );
+  };
+
+  const handlePrintLabel = (testId: string) => {
+    printTestFormPdf(`/test-forms/test/${testId}/label`);
+  };
+
+  const handlePrintBundle = () => {
+    if (!sample) return;
+    printTestFormPdf(`/test-forms/sample/${sample.id}/bundle`);
+  };
+
+  const handleDownloadBundle = () => {
+    if (!sample) return;
+    downloadTestFormPdf(
+      `/test-forms/sample/${sample.id}/bundle`,
+      `${sample.sampleNumber}_All_Test_Forms_Bundle.pdf`
+    );
+  };
+
   const fetchSample = async () => {
     try {
       setLoading(true);
@@ -256,14 +315,7 @@ export default function SampleDetailPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex h-96 items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-700 border-t-amber-500"></div>
-          <p className="text-sm font-medium text-slate-400">Loading sample custody record...</p>
-        </div>
-      </div>
-    );
+    return <DetailViewSkeleton />;
   }
 
   if (error || !sample) {
@@ -471,14 +523,36 @@ export default function SampleDetailPage() {
 
           {/* Assigned Laboratory Tests */}
           <div className="rounded-xl border border-slate-800 bg-slate-900/90 p-6 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-800 pb-3 gap-3">
               <div className="flex items-center gap-2">
                 <FileText className="h-5 w-5 text-amber-500" />
-                <h2 className="text-base font-semibold text-white">Laboratory Test Worksheets</h2>
+                <div>
+                  <h2 className="text-base font-semibold text-white">Laboratory Test Worksheets</h2>
+                  <p className="text-xs text-slate-400">
+                    {sample.tests?.length || 0} Test{(sample.tests?.length || 0) !== 1 ? 's' : ''} Scheduled • Official QR-stamped forms
+                  </p>
+                </div>
               </div>
-              <span className="text-xs text-slate-400">
-                {sample.tests?.length || 0} Test{(sample.tests?.length || 0) !== 1 ? 's' : ''} Scheduled
-              </span>
+
+              {sample.tests && sample.tests.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handlePrintBundle}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs shadow-sm transition"
+                    title="Print all test forms for this specimen in one multi-page packet"
+                  >
+                    <Printer className="h-3.5 w-3.5" />
+                    <span>Print All Forms (Bundle)</span>
+                  </button>
+                  <button
+                    onClick={handleDownloadBundle}
+                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition"
+                    title="Download all test forms combined"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
 
             {(!sample.tests || sample.tests.length === 0) ? (
@@ -497,7 +571,7 @@ export default function SampleDetailPage() {
                 {sample.tests.map((test) => (
                   <div
                     key={test.id}
-                    className="py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between hover:bg-slate-800/40 p-3 rounded-lg transition"
+                    className="py-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between hover:bg-slate-800/40 p-3 rounded-lg transition"
                   >
                     <div>
                       <div className="flex items-center gap-2">
@@ -537,12 +611,47 @@ export default function SampleDetailPage() {
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => handleOpenPreview(test)}
+                        className="inline-flex items-center gap-1 rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700 border border-slate-700 transition"
+                        title="Preview official test form"
+                      >
+                        <Eye className="h-3.5 w-3.5 text-teal-400" />
+                        <span>Preview</span>
+                      </button>
+
+                      <button
+                        onClick={() => handlePrintForm(test.id)}
+                        className="inline-flex items-center gap-1 rounded-lg bg-amber-400 hover:bg-amber-300 px-2.5 py-1.5 text-xs font-bold text-slate-950 transition shadow-sm"
+                        title="Print clean official test form with QR code"
+                      >
+                        <Printer className="h-3.5 w-3.5" />
+                        <span>Print</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleDownloadForm(test)}
+                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition"
+                        title="Download PDF"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                      </button>
+
+                      <button
+                        onClick={() => handlePrintLabel(test.id)}
+                        className="inline-flex items-center gap-1 rounded-lg bg-slate-800 hover:bg-slate-700 px-2 py-1.5 text-xs font-semibold text-amber-300 border border-amber-500/20 transition"
+                        title="Print QR Tracking Label"
+                      >
+                        <Tag className="h-3 w-3 text-amber-400" />
+                        <span>Label</span>
+                      </button>
+
                       <Link
                         href={`/tests/${test.id}`}
-                        className="inline-flex items-center gap-1 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700 border border-slate-700 transition"
+                        className="inline-flex items-center gap-1 rounded-lg bg-teal-600 hover:bg-teal-500 px-3 py-1.5 text-xs font-semibold text-white transition"
                       >
-                        Open Worksheet <ChevronRight className="h-3.5 w-3.5" />
+                        Worksheet <ChevronRight className="h-3.5 w-3.5" />
                       </Link>
                     </div>
                   </div>
@@ -986,6 +1095,21 @@ export default function SampleDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Test Form PDF Viewer Modal */}
+      {selectedFormContext && (
+        <TestFormViewerModal
+          isOpen={viewerModalOpen}
+          onClose={() => setViewerModalOpen(false)}
+          title={selectedFormContext.title}
+          testCode={selectedFormContext.testCode}
+          testStandard={selectedFormContext.testStandard}
+          sampleNumber={selectedFormContext.sampleNumber}
+          pdfEndpoint={selectedFormContext.pdfEndpoint}
+          hasTemplate={selectedFormContext.hasTemplate}
+          defaultFilename={selectedFormContext.defaultFilename}
+        />
       )}
     </div>
   );

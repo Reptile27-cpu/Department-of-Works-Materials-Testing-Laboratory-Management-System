@@ -21,6 +21,7 @@ import { notificationRoutes } from './modules/notifications/notification.routes'
 import { clientRoutes } from './modules/clients/client.routes';
 import { requestRoutes } from './modules/requests/request.routes';
 import { quotationRoutes } from './modules/quotations/quotation.routes';
+import { testFormRoutes } from './modules/test-forms/test-form.routes';
 import { healthRouter } from './routes/health';
 
 const app = express();
@@ -120,6 +121,7 @@ app.use(`${API_PREFIX}/notifications`, notificationRoutes);
 app.use(`${API_PREFIX}/clients`, clientRoutes);
 app.use(`${API_PREFIX}/requests`, requestRoutes);
 app.use(`${API_PREFIX}/quotations`, quotationRoutes);
+app.use(`${API_PREFIX}/test-forms`, testFormRoutes);
 
 // ==================== 404 Handler ====================
 

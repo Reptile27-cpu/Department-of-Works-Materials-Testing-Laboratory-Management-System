@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { CardGridSkeleton } from '@/components/ui/skeleton';
 import { api } from '@/lib/api';
 import {
   Building2,
@@ -166,9 +167,7 @@ export default function ProjectsPage() {
 
       {/* Projects Grid */}
       {loading ? (
-        <div className="flex h-64 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-700 border-t-amber-500" />
-        </div>
+        <CardGridSkeleton count={6} columns={3} />
       ) : projects.length === 0 ? (
         <div className="rounded-xl border border-slate-800 bg-slate-900/90 p-12 text-center">
           <Building2 className="mx-auto h-12 w-12 text-slate-600 mb-3" />

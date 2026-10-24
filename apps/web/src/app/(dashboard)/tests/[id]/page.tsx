@@ -1,10 +1,13 @@
 'use client';
+import { Skeleton, TableSkeleton, CardGridSkeleton, DetailViewSkeleton, MetricCardsSkeleton } from '@/components/ui/skeleton';
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
+import TestFormViewerModal from '@/components/test-form-viewer-modal';
+import { printTestFormPdf, downloadTestFormPdf } from '@/lib/test-form-utils';
 import {
   ArrowLeft,
   Save,
@@ -27,6 +30,8 @@ import {
   FlaskConical,
   Scale,
   Compass,
+  Eye,
+  Download,
 } from 'lucide-react';
 
 interface EquipmentItem {
@@ -128,6 +133,7 @@ export default function TestWorksheetPage() {
   const [submitting, setSubmitting] = useState(false);
   const [approving, setApproving] = useState(false);
   const [generatingReport, setGeneratingReport] = useState(false);
+  const [viewerModalOpen, setViewerModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -322,14 +328,7 @@ export default function TestWorksheetPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex h-96 items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-700 border-t-amber-500" />
-          <p className="text-sm font-medium text-slate-400">Opening laboratory digital worksheet...</p>
-        </div>
-      </div>
-    );
+    return <DetailViewSkeleton />;
   }
 
   if (error && !test) {
@@ -418,6 +417,46 @@ export default function TestWorksheetPage() {
 
         {/* Top Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Print & Official Form Actions */}
+          <button
+            type="button"
+            onClick={() => setViewerModalOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3.5 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition shadow-sm"
+            title="Preview QR-stamped official test form"
+          >
+            <Eye className="h-4 w-4 text-teal-400" />
+            <span>Preview Form</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => printTestFormPdf(`/test-forms/test/${test.id}/pdf`)}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 px-3.5 py-2 text-xs font-bold text-slate-950 transition shadow-md shadow-amber-400/10"
+            title="Print official laboratory test form with scannable QR code"
+          >
+            <Printer className="h-4 w-4" />
+            <span>Print Test Form</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => downloadTestFormPdf(`/test-forms/test/${test.id}/pdf`, `${test.sample.sampleNumber}_${test.testType.code}_Form.pdf`)}
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition"
+            title="Download PDF"
+          >
+            <Download className="h-4 w-4" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => printTestFormPdf(`/test-forms/test/${test.id}/label`)}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 px-3 py-2 text-xs font-semibold text-amber-300 border border-amber-500/20 transition"
+            title="Print QR Tracking Label"
+          >
+            <Tag className="h-4 w-4 text-amber-400" />
+            <span>Print Label</span>
+          </button>
+
           {canEdit && (
             <>
               <button
@@ -2045,6 +2084,20 @@ export default function TestWorksheetPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Official Test Form PDF Viewer Modal */}
+      {viewerModalOpen && test && (
+        <TestFormViewerModal
+          isOpen={viewerModalOpen}
+          onClose={() => setViewerModalOpen(false)}
+          title={test.testType?.name || 'Laboratory Test Form'}
+          testCode={test.testType?.code || 'TEST'}
+          testStandard={test.testType?.standard}
+          sampleNumber={test.sample?.sampleNumber}
+          pdfEndpoint={`/test-forms/test/${test.id}/pdf`}
+          defaultFilename={`${test.sample?.sampleNumber || 'DOW'}_${test.testType?.code || 'Test'}_Form.pdf`}
+        />
       )}
     </div>
   );

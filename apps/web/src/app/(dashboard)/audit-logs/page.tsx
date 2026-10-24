@@ -1,4 +1,5 @@
 'use client';
+import { TableSkeleton, CardGridSkeleton, DetailViewSkeleton, Skeleton } from '@/components/ui/skeleton';
 
 import { useEffect, useState } from 'react';
 import {
@@ -132,10 +133,7 @@ export default function AuditLogsPage() {
 
       {/* Audit Log Table */}
       {loading ? (
-        <div className="p-12 text-center card bg-[var(--bg-primary)]">
-          <Clock className="w-7 h-7 animate-spin text-primary mx-auto mb-2" />
-          <p className="text-xs text-[var(--text-muted)]">Loading security audit records...</p>
-        </div>
+        <TableSkeleton columns={6} rows={6} showHeader={false} />
       ) : filtered.length === 0 ? (
         <div className="p-12 text-center card bg-[var(--bg-primary)] border border-dashed border-border">
           <Activity className="w-10 h-10 text-[var(--text-muted)] mx-auto mb-3 opacity-60" />

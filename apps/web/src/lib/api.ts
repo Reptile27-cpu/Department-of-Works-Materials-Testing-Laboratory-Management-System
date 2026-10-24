@@ -50,6 +50,32 @@ let failedQueue: Array<{
   reject: (reason: unknown) => void;
 }> = [];
 
+export const restoreSession = async (): Promise<{ user: Record<string, unknown>; accessToken: string } | null> => {
+  try {
+    const storedRefreshToken = typeof window !== 'undefined' ? localStorage.getItem('refreshToken') : null;
+    const response = await axios.post(
+      `${API_BASE_URL}/auth/refresh`,
+      storedRefreshToken ? { refreshToken: storedRefreshToken } : {},
+      { withCredentials: true }
+    );
+
+    if (response.data?.success && response.data?.data) {
+      const { accessToken, user } = response.data.data;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('accessToken', accessToken);
+        if (user) {
+          localStorage.setItem('user', JSON.stringify(user));
+        }
+      }
+      return { user, accessToken };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+
 const processQueue = (error: unknown, token: string | null = null) => {
   failedQueue.forEach((prom) => {
     if (error) {
@@ -85,35 +111,22 @@ api.interceptors.response.use(
         });
       }
 
-      const storedRefreshToken = typeof window !== 'undefined' ? localStorage.getItem('refreshToken') : null;
-      if (!storedRefreshToken) {
-        // No refresh token available; clean up and redirect to login
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
-          localStorage.removeItem('user');
-          if (window.location.pathname !== '/login') {
-            window.location.href = '/login';
-          }
-        }
-        return Promise.reject(error);
-      }
-
       originalRequest._retry = true;
       isRefreshing = true;
 
       try {
+        const storedRefreshToken = typeof window !== 'undefined' ? localStorage.getItem('refreshToken') : null;
         const response = await axios.post(
           `${API_BASE_URL}/auth/refresh`,
-          { refreshToken: storedRefreshToken },
+          storedRefreshToken ? { refreshToken: storedRefreshToken } : {},
           { withCredentials: true }
         );
 
-        const { accessToken, refreshToken: newRefreshToken } = response.data.data;
+        const { accessToken, user } = response.data.data;
         if (typeof window !== 'undefined') {
           localStorage.setItem('accessToken', accessToken);
-          if (newRefreshToken) {
-            localStorage.setItem('refreshToken', newRefreshToken);
+          if (user) {
+            localStorage.setItem('user', JSON.stringify(user));
           }
         }
 
@@ -128,7 +141,7 @@ api.interceptors.response.use(
           localStorage.removeItem('refreshToken');
           localStorage.removeItem('user');
           if (window.location.pathname !== '/login') {
-            window.location.href = '/login';
+            window.location.href = '/login?message=session_expired';
           }
         }
         return Promise.reject(refreshError);

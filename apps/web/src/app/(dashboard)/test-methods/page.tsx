@@ -1,4 +1,5 @@
 'use client';
+import { TableSkeleton, CardGridSkeleton, DetailViewSkeleton, Skeleton } from '@/components/ui/skeleton';
 
 import { useEffect, useState } from 'react';
 import {
@@ -121,10 +122,7 @@ export default function TestMethodsCataloguePage() {
 
       {/* Methods List */}
       {loading ? (
-        <div className="p-12 text-center card bg-[var(--bg-primary)]">
-          <Clock className="w-7 h-7 animate-spin text-primary mx-auto mb-2" />
-          <p className="text-xs text-[var(--text-muted)]">Loading test specifications...</p>
-        </div>
+        <TableSkeleton columns={5} rows={6} showHeader={false} />
       ) : filtered.length === 0 ? (
         <div className="p-12 text-center card bg-[var(--bg-primary)] border border-dashed border-border">
           <BookOpen className="w-10 h-10 text-[var(--text-muted)] mx-auto mb-3 opacity-60" />

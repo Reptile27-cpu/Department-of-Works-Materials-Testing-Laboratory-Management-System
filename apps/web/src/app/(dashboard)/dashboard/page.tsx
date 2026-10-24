@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
+import { Skeleton, TableSkeleton } from '@/components/ui/skeleton';
 import { useWorkerStore } from '@/stores/worker-store';
 
 interface DashboardMetrics {
@@ -325,7 +326,7 @@ export default function DashboardPage() {
               <span className="text-xs font-medium">Total Requests</span>
               <FileText className="w-4 h-4 text-blue-400" />
             </div>
-            <div className="text-2xl font-bold text-white">{isLoading ? '...' : totalRequests}</div>
+            <div className="text-2xl font-bold text-white">{isLoading ? <Skeleton className="h-7 w-12 bg-slate-800 inline-block" /> : totalRequests}</div>
             <div className="text-[11px] text-slate-500 mt-1">Submitted requests</div>
           </div>
 
@@ -334,7 +335,7 @@ export default function DashboardPage() {
               <span className="text-xs font-medium">Under Review</span>
               <Clock className="w-4 h-4 text-amber-400" />
             </div>
-            <div className="text-2xl font-bold text-amber-400">{isLoading ? '...' : underReview}</div>
+            <div className="text-2xl font-bold text-amber-400">{isLoading ? <Skeleton className="h-7 w-12 bg-amber-400/20 inline-block" /> : underReview}</div>
             <div className="text-[11px] text-slate-500 mt-1">Awaiting review / quote</div>
           </div>
 
@@ -343,7 +344,7 @@ export default function DashboardPage() {
               <span className="text-xs font-medium">Active in Lab</span>
               <FlaskConical className="w-4 h-4 text-teal-400" />
             </div>
-            <div className="text-2xl font-bold text-teal-400">{isLoading ? '...' : activeInLab}</div>
+            <div className="text-2xl font-bold text-teal-400">{isLoading ? <Skeleton className="h-7 w-12 bg-teal-400/20 inline-block" /> : activeInLab}</div>
             <div className="text-[11px] text-slate-500 mt-1">Under testing</div>
           </div>
 
@@ -352,7 +353,7 @@ export default function DashboardPage() {
               <span className="text-xs font-medium">Certificates Ready</span>
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
             </div>
-            <div className="text-2xl font-bold text-emerald-400">{isLoading ? '...' : completed}</div>
+            <div className="text-2xl font-bold text-emerald-400">{isLoading ? <Skeleton className="h-7 w-12 bg-emerald-400/20 inline-block" /> : completed}</div>
             <div className="text-[11px] text-slate-500 mt-1">Ready for download</div>
           </div>
         </div>
@@ -375,9 +376,7 @@ export default function DashboardPage() {
             </div>
 
             {isLoading ? (
-              <div className="text-center py-12 bg-slate-900 rounded-2xl border border-slate-800 text-slate-500">
-                Loading requests...
-              </div>
+              <TableSkeleton columns={5} rows={4} showHeader={false} />
             ) : clientRequests.length === 0 ? (
               <div className="text-center py-12 bg-slate-900 rounded-2xl border border-slate-800 p-8 space-y-3">
                 <FileText className="w-10 h-10 text-amber-400 mx-auto" />
@@ -675,7 +674,7 @@ export default function DashboardPage() {
             <FlaskConical className="w-4 h-4 text-blue-400" />
           </div>
           <div className="text-2xl font-bold text-white">
-            {isLoading ? '...' : metrics?.totalSamples ?? 0}
+            {isLoading ? <Skeleton className="h-7 w-12 bg-slate-800 inline-block" /> : metrics?.totalSamples ?? 0}
           </div>
           <div className="text-[11px] text-slate-500 mt-1">Registered in registry</div>
         </div>
@@ -686,7 +685,7 @@ export default function DashboardPage() {
             <Clock className="w-4 h-4 text-amber-400" />
           </div>
           <div className="text-2xl font-bold text-amber-400">
-            {isLoading ? '...' : metrics?.samplesAwaitingTesting ?? 0}
+            {isLoading ? <Skeleton className="h-7 w-12 bg-amber-400/20 inline-block" /> : metrics?.samplesAwaitingTesting ?? 0}
           </div>
           <div className="text-[11px] text-slate-500 mt-1">Queued for assignment</div>
         </div>
@@ -697,7 +696,7 @@ export default function DashboardPage() {
             <Activity className="w-4 h-4 text-teal-400" />
           </div>
           <div className="text-2xl font-bold text-teal-400">
-            {isLoading ? '...' : metrics?.testsInProgress ?? 0}
+            {isLoading ? <Skeleton className="h-7 w-12 bg-teal-400/20 inline-block" /> : metrics?.testsInProgress ?? 0}
           </div>
           <div className="text-[11px] text-slate-500 mt-1">Active lab tests</div>
         </div>
@@ -708,7 +707,7 @@ export default function DashboardPage() {
             <FileSpreadsheet className="w-4 h-4 text-purple-400" />
           </div>
           <div className="text-2xl font-bold text-purple-400">
-            {isLoading ? '...' : metrics?.testsAwaitingReview ?? 0}
+            {isLoading ? <Skeleton className="h-7 w-12 bg-purple-400/20 inline-block" /> : metrics?.testsAwaitingReview ?? 0}
           </div>
           <div className="text-[11px] text-slate-500 mt-1">Engineering validation</div>
         </div>
@@ -719,7 +718,7 @@ export default function DashboardPage() {
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
           </div>
           <div className="text-2xl font-bold text-emerald-400">
-            {isLoading ? '...' : metrics?.completedTests ?? 0}
+            {isLoading ? <Skeleton className="h-7 w-12 bg-emerald-400/20 inline-block" /> : metrics?.completedTests ?? 0}
           </div>
           <div className="text-[11px] text-slate-500 mt-1">Certified reports issued</div>
         </div>
@@ -730,7 +729,7 @@ export default function DashboardPage() {
             <TestTube2 className="w-4 h-4 text-cyan-400" />
           </div>
           <div className="text-2xl font-bold text-white">
-            {isLoading ? '...' : metrics?.totalEquipment ?? 0}
+            {isLoading ? <Skeleton className="h-7 w-12 bg-cyan-400/20 inline-block" /> : metrics?.totalEquipment ?? 0}
           </div>
           <div className="text-[11px] text-slate-500 mt-1">Calibrated instruments</div>
         </div>

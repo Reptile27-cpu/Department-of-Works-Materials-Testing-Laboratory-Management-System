@@ -6,7 +6,7 @@ import { authController } from './auth.controller';
 
 import { validate } from '../../middleware/validate.middleware';
 
-import { authenticate } from '../../middleware/auth.middleware';
+import { authenticate, optionalAuth } from '../../middleware/auth.middleware';
 
 import {
   loginSchema,
@@ -102,7 +102,7 @@ authRoutes.post(
 // POST /api/v1/auth/logout
 authRoutes.post(
   '/logout',
-  authenticate,
+  optionalAuth,
   (req, res, next) =>
     authController.logout(req, res, next)
 );

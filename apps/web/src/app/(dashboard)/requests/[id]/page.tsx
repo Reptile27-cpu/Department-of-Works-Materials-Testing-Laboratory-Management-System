@@ -1,10 +1,13 @@
 'use client';
+import { Skeleton, TableSkeleton, CardGridSkeleton, DetailViewSkeleton, MetricCardsSkeleton } from '@/components/ui/skeleton';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
+import TestFormViewerModal from '@/components/test-form-viewer-modal';
+import { printTestFormPdf, downloadTestFormPdf } from '@/lib/test-form-utils';
 import {
   FileText,
   ArrowLeft,
@@ -25,6 +28,10 @@ import {
   HelpCircle,
   XCircle,
   FileSpreadsheet,
+  Printer,
+  Eye,
+  Download,
+  Tag,
 } from 'lucide-react';
 
 interface LabRequest {
@@ -96,6 +103,20 @@ export default function RequestDetailPage() {
   const [dueDate, setDueDate] = useState('');
   const [intakeRemarks, setIntakeRemarks] = useState('');
 
+  // Test Form Registry & Viewer Modal State
+  const [formList, setFormList] = useState<any[]>([]);
+  const [sampleInfo, setSampleInfo] = useState<any | null>(null);
+  const [viewerModalOpen, setViewerModalOpen] = useState(false);
+  const [selectedFormContext, setSelectedFormContext] = useState<{
+    title: string;
+    testCode: string;
+    testStandard?: string;
+    sampleNumber?: string;
+    pdfEndpoint: string;
+    hasTemplate?: boolean;
+    defaultFilename?: string;
+  } | null>(null);
+
   const isStaff = user?.role && user.role !== 'client';
   const isManagerOrAdmin = user?.role === 'lab_manager' || user?.role === 'system_admin' || user?.role === 'super_admin';
 
@@ -106,12 +127,36 @@ export default function RequestDetailPage() {
       if (res.data?.success) {
         setRequest(res.data.data);
       }
+
+      try {
+        const formRes = await api.get(`/test-forms/request/${id}`);
+        if (formRes.data?.success) {
+          setFormList(formRes.data.data.forms || []);
+          setSampleInfo(formRes.data.data.sample || null);
+        }
+      } catch (fErr) {
+        console.warn('Test form mapping fetch note:', fErr);
+      }
     } catch (err: any) {
       setError(err?.response?.data?.error?.message || 'Failed to load request record.');
     } finally {
       setLoading(false);
     }
   }, [id]);
+
+  const handleOpenFormPreview = (form: any) => {
+    if (!form.labTestId) return;
+    setSelectedFormContext({
+      title: form.testName,
+      testCode: form.testCode,
+      testStandard: form.standard,
+      sampleNumber: sampleInfo?.sampleNumber || request?.sampleNumber,
+      pdfEndpoint: `/test-forms/test/${form.labTestId}/pdf`,
+      hasTemplate: form.hasTemplate,
+      defaultFilename: `${sampleInfo?.sampleNumber || request?.sampleNumber || 'DOW'}_${form.testCode}_Form.pdf`,
+    });
+    setViewerModalOpen(true);
+  };
 
   useEffect(() => {
     if (id) fetchRequest();
@@ -224,12 +269,7 @@ export default function RequestDetailPage() {
   };
 
   if (loading) {
-    return (
-      <div className="text-center py-16 text-slate-400 flex flex-col items-center justify-center gap-2">
-        <Loader2 className="w-6 h-6 animate-spin text-amber-400" />
-        <span className="text-sm">Loading Request record {id}...</span>
-      </div>
-    );
+    return <DetailViewSkeleton />;
   }
 
   if (error || !request) {
@@ -392,12 +432,23 @@ export default function RequestDetailPage() {
             </div>
           </div>
           {request.sampleId && (
-            <Link
-              href={`/samples/${request.sampleId}`}
-              className="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-black font-bold rounded-xl text-xs text-center transition-all shadow-md shrink-0"
-            >
-              Open Sample Custody & QR Tag &rarr;
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => printTestFormPdf(`/test-forms/sample/${request.sampleId}/bundle`)}
+                className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/40 font-bold rounded-xl text-xs flex items-center gap-1.5 transition shadow"
+                title="Print all official test forms with QR code for this specimen"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                Print All Test Forms (Bundle)
+              </button>
+              <Link
+                href={`/samples/${request.sampleId}`}
+                className="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-black font-bold rounded-xl text-xs text-center transition-all shadow-md shrink-0"
+              >
+                Open Sample Custody & QR Tag &rarr;
+              </Link>
+            </div>
           )}
         </div>
       )}
@@ -467,27 +518,122 @@ export default function RequestDetailPage() {
 
         {/* Requested Tests Scope */}
         <div className="pt-4 border-t border-slate-800">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Requested Laboratory Standards Scope ({request.requestedTests?.length || 0} Standards)
-            </h3>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                <FileText className="w-4 h-4 text-teal-400" />
+                Linked Laboratory Test Worksheets &amp; PDF Forms ({formList.length || request.requestedTests?.length || 0} Standards)
+              </h3>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Official DoW testing templates connected to the specimen QR code matrix.
+              </p>
+            </div>
             {request.estimatedCost && (
-              <span className="text-xs font-mono font-bold text-amber-400">
+              <span className="text-xs font-mono font-bold text-amber-400 shrink-0">
                 Estimated Fee: PGK K{Number(request.estimatedCost).toFixed(2)}
               </span>
             )}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            {request.requestedTests?.map((testName, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-950/60 border border-slate-800 text-xs font-medium text-slate-200"
-              >
-                <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>{testName}</span>
-              </div>
-            ))}
-          </div>
+
+          {formList.length > 0 ? (
+            <div className="grid grid-cols-1 gap-2.5">
+              {formList.map((form: any, i: number) => (
+                <div
+                  key={i}
+                  className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3 hover:border-slate-700 transition"
+                >
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-xs font-bold text-teal-300">
+                        {form.testCode}
+                      </span>
+                      <span className="text-[10px] font-mono text-slate-400">
+                        {form.standard}
+                      </span>
+                      {form.hasTemplate ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          <CheckCircle2 className="w-3 h-3" /> Official Form Available ({form.formNumber || 'Archive'})
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                          <AlertCircle className="w-3 h-3" /> Printable QR Label Fallback
+                        </span>
+                      )}
+                      {form.testNumber && (
+                        <span className="font-mono text-[10px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                          #{form.testNumber}
+                        </span>
+                      )}
+                    </div>
+                    <h4 className="text-xs font-bold text-white">{form.testName}</h4>
+                    {form.notes && (
+                      <p className="text-[11px] text-slate-500 italic">{form.notes}</p>
+                    )}
+                  </div>
+
+                  {form.labTestId && (
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenFormPreview(form)}
+                        className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1 transition border border-slate-700"
+                        title="Preview PDF"
+                      >
+                        <Eye className="w-3.5 h-3.5 text-teal-400" />
+                        Preview
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => printTestFormPdf(`/test-forms/test/${form.labTestId}/pdf`)}
+                        className="px-2.5 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold flex items-center gap-1 transition shadow-sm"
+                        title="Print clean test form with QR code"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                        Print Form
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          downloadTestFormPdf(
+                            `/test-forms/test/${form.labTestId}/pdf`,
+                            `${sampleInfo?.sampleNumber || request.sampleNumber || 'DOW'}_${form.testCode}_Form.pdf`
+                          )
+                        }
+                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition"
+                        title="Download PDF"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => printTestFormPdf(`/test-forms/test/${form.labTestId}/label`)}
+                        className="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-semibold flex items-center gap-1 transition border border-amber-500/20"
+                        title="Print QR Tracking Label"
+                      >
+                        <Tag className="w-3 h-3 text-amber-400" />
+                        Label
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {request.requestedTests?.map((testName, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-950/60 border border-slate-800 text-xs font-medium text-slate-200"
+                >
+                  <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>{testName}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Technical Review Sign-off */}
@@ -722,6 +868,21 @@ export default function RequestDetailPage() {
             </div>
           </form>
         </div>
+      )}
+
+      {/* Official Test Form PDF Viewer Modal */}
+      {selectedFormContext && (
+        <TestFormViewerModal
+          isOpen={viewerModalOpen}
+          onClose={() => setViewerModalOpen(false)}
+          title={selectedFormContext.title}
+          testCode={selectedFormContext.testCode}
+          testStandard={selectedFormContext.testStandard}
+          sampleNumber={selectedFormContext.sampleNumber}
+          pdfEndpoint={selectedFormContext.pdfEndpoint}
+          hasTemplate={selectedFormContext.hasTemplate}
+          defaultFilename={selectedFormContext.defaultFilename}
+        />
       )}
     </div>
   );

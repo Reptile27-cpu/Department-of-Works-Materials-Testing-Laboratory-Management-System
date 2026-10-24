@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { DetailViewSkeleton } from '@/components/ui/skeleton';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
@@ -79,7 +80,7 @@ export default function QuotationDetailPage() {
   };
 
   if (loading) {
-    return <div className="text-center py-12 text-slate-500">Loading Quotation Form QT-01...</div>;
+    return <DetailViewSkeleton />;
   }
 
   if (error || !quotation) {

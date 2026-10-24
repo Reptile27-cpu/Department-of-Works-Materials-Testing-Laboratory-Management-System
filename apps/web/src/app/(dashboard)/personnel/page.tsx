@@ -1,4 +1,5 @@
 'use client';
+import { TableSkeleton, CardGridSkeleton, DetailViewSkeleton, Skeleton } from '@/components/ui/skeleton';
 
 import { useEffect, useState } from 'react';
 import {
@@ -393,10 +394,7 @@ export default function PersonnelRosterPage() {
 
           {/* Workers Grid */}
           {loading ? (
-            <div className="p-12 text-center rounded-2xl bg-slate-950 border border-slate-800">
-              <Clock className="w-7 h-7 animate-spin text-amber-400 mx-auto mb-2" />
-              <p className="text-xs text-slate-400">Loading laboratory personnel...</p>
-            </div>
+            <CardGridSkeleton count={6} columns={3} />
           ) : filteredWorkers.length === 0 ? (
             <div className="p-12 text-center rounded-2xl bg-slate-950 border border-dashed border-slate-800">
               <UserCheck className="w-10 h-10 text-slate-600 mx-auto mb-3" />

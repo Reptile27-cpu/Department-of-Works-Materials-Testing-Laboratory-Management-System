@@ -1,4 +1,5 @@
 'use client';
+import { TableSkeleton, CardGridSkeleton, DetailViewSkeleton, Skeleton } from '@/components/ui/skeleton';
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -260,10 +261,7 @@ export default function WorkerDashboardPage() {
           </div>
 
           {loading ? (
-            <div className="p-12 text-center rounded-2xl bg-slate-900 border border-slate-800 text-slate-400">
-              <RefreshCw className="w-6 h-6 animate-spin mx-auto text-amber-400 mb-2" />
-              Loading assigned worksheets...
-            </div>
+            <TableSkeleton columns={6} rows={4} showHeader={false} />
           ) : tests.length === 0 ? (
             <div className="p-12 text-center rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
               <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto" />

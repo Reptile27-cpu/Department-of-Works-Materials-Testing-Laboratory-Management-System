@@ -205,8 +205,8 @@ export default function ChangePasswordPage() {
             <div className="text-center pt-2">
               <button
                 type="button"
-                onClick={() => {
-                  logout();
+                onClick={async () => {
+                  await logout();
                   router.push('/login');
                 }}
                 className="text-xs text-gray-500 hover:text-gray-700"

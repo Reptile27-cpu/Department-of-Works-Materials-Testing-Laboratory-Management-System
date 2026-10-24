@@ -53,3 +53,8 @@ coverage/
 **/~$*
 
 **/.agents/skills/
+
+storage/
+backend/storage/
+
+video-demo/

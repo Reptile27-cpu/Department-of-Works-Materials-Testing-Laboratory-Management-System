@@ -1,4 +1,5 @@
 'use client';
+import { TableSkeleton, CardGridSkeleton, DetailViewSkeleton, Skeleton } from '@/components/ui/skeleton';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -176,10 +177,7 @@ export default function EngineeringReviewQueuePage() {
 
       {/* Review Queue List */}
       {loading ? (
-        <div className="p-12 text-center card bg-[var(--bg-primary)]">
-          <Clock className="w-7 h-7 animate-spin text-primary mx-auto mb-2" />
-          <p className="text-xs text-[var(--text-muted)]">Loading tests awaiting review...</p>
-        </div>
+        <TableSkeleton columns={7} rows={6} showHeader={false} />
       ) : filteredTests.length === 0 ? (
         <div className="p-12 text-center card bg-[var(--bg-primary)] border border-dashed border-border">
           <CheckCircle2 className="w-10 h-10 text-success mx-auto mb-3 opacity-60" />

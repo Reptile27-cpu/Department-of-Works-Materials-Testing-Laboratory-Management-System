@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { DetailViewSkeleton } from '@/components/ui/skeleton';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
@@ -97,7 +98,7 @@ export default function ReportDetailPage() {
   };
 
   if (loading) {
-    return <div className="text-center py-12 text-slate-500">Loading Official Test Report...</div>;
+    return <DetailViewSkeleton />;
   }
 
   if (error || !report) {

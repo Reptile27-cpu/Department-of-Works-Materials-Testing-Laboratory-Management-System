@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { DetailViewSkeleton } from '@/components/ui/skeleton';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
@@ -199,14 +200,7 @@ export default function NewSamplePage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex h-96 items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-700 border-t-amber-500"></div>
-          <p className="text-sm font-medium text-slate-400">Loading laboratory master data...</p>
-        </div>
-      </div>
-    );
+    return <DetailViewSkeleton />;
   }
 
   return (

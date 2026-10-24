@@ -1,4 +1,5 @@
 'use client';
+import { Skeleton, TableSkeleton, CardGridSkeleton, DetailViewSkeleton, MetricCardsSkeleton } from '@/components/ui/skeleton';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -228,14 +229,18 @@ export default function SamplesRegisterPage() {
             </thead>
             <tbody className="divide-y divide-border">
               {isLoading ? (
-                <tr>
-                  <td colSpan={8} className="py-10 text-center text-slate-400">
-                    <div className="flex items-center justify-center gap-2">
-                      <RefreshCw className="w-4 h-4 animate-spin text-teal-600" />
-                      <span>Loading laboratory sample custody records...</span>
-                    </div>
-                  </td>
-                </tr>
+                Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td className="py-3 px-4"><Skeleton className="h-4 w-28 bg-amber-400/15 border-amber-500/20" /></td>
+                    <td className="py-3 px-4"><Skeleton className="h-4 w-36 bg-slate-800" /><Skeleton className="h-3 w-48 mt-1 bg-slate-800/60" /></td>
+                    <td className="py-3 px-4"><Skeleton className="h-4 w-28 bg-slate-800/70" /></td>
+                    <td className="py-3 px-4"><Skeleton className="h-4 w-24 bg-slate-800/60" /></td>
+                    <td className="py-3 px-4"><Skeleton className="h-5 w-16 rounded-full bg-slate-800" /></td>
+                    <td className="py-3 px-4"><Skeleton className="h-5 w-20 rounded-full bg-slate-800" /></td>
+                    <td className="py-3 px-4"><Skeleton className="h-4 w-24 bg-slate-800/60" /></td>
+                    <td className="py-3 px-4 text-right"><Skeleton className="h-6 w-12 ml-auto rounded bg-slate-800/80" /></td>
+                  </tr>
+                ))
               ) : samples.length > 0 ? (
                 samples.map((s) => (
                   <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">

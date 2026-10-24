@@ -134,8 +134,8 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       ? '/worker/dashboard'
       : '/dashboard';
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     router.replace('/login');
   };
 
